@@ -1,0 +1,37 @@
+name: Add release assets
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  add-script-to-release:
+    runs-on: windows-latest
+    
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Generate release files
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+          & ".\.github\workflows\doRelease.ps1"
+          
+      - name: Upload PowerShell script
+        run: |
+          gh release upload "$env:TAG" ./isoDebloater.ps1 --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
+
+      - name: Upload batch script
+        run: |
+          gh release upload "$env:TAG" ./isoDebloater.bat --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}

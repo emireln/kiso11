@@ -1,0 +1,1074 @@
+<Window x:Class="Kiso11.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:Kiso11.ViewModels"
+        xmlns:conv="clr-namespace:Kiso11.Converters"
+        mc:Ignorable="d"
+        Title="{Binding Loc.WindowTitle}"
+        Icon="/Assets/kiso11-logo.png"
+        Width="820"
+        Height="620"
+        MinWidth="760"
+        MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource WindowBackground}"
+        AllowDrop="True"
+        DragOver="OnWindowDragOver"
+        Drop="OnWindowDrop">
+
+    <Window.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis" />
+        <conv:BoolToVisibilityConverter x:Key="InverseBoolToVis" Inverse="True" />
+        <conv:BoolToStatusColorConverter x:Key="BoolToStatusColor" />
+        <conv:BoolToStatusTextConverter x:Key="BoolToStatusText" />
+    </Window.Resources>
+
+    <Window.DataContext>
+        <vm:MainViewModel />
+    </Window.DataContext>
+
+    <Grid Background="{StaticResource WindowBackground}">
+        <Grid.RowDefinitions>
+            <!-- Row 0: App Header Bar -->
+            <RowDefinition Height="Auto" />
+            <!-- Row 1: Stepper Navigation Pill Tabs -->
+            <RowDefinition Height="Auto" />
+            <!-- Row 2: Step Content Area -->
+            <RowDefinition Height="*" />
+            <!-- Row 3: Bottom Action / Navigation Bar -->
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ROW 0: CLEAN APP HEADER (No Subtitle Slop, Clean Icons) -->
+        <Border Grid.Row="0"
+                Background="{StaticResource SurfaceBrush}"
+                Padding="20,12,20,12"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Left: Logo and Brand Name -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="30"
+                            Height="30"
+                            CornerRadius="7"
+                            Background="#18181c"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            Padding="2"
+                            Margin="0,0,10,0">
+                        <Image Source="/Assets/kiso11-logo.png"
+                               RenderOptions.BitmapScalingMode="HighQuality" />
+                    </Border>
+
+                    <TextBlock Text="Kiso11"
+                               FontSize="17"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               VerticalAlignment="Center" />
+
+                    <Border Background="#1f1f26"
+                            CornerRadius="4"
+                            Padding="6,2"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="v1.0"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource AccentBrush}" />
+                    </Border>
+                </StackPanel>
+
+                <!-- Right: Admin Status, Language Segmented Control, Tray Minimize -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Administrator Status Pill -->
+                    <Border Background="#15271e"
+                            BorderBrush="#10b981"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="8,4"
+                            Margin="0,0,10,0"
+                            Visibility="{Binding IsAdministrator, Converter={StaticResource BoolToVis}}">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Ellipse Width="6" Height="6" Fill="{StaticResource SuccessBrush}" Margin="0,0,6,0" />
+                            <TextBlock Text="Admin"
+                                       FontSize="11.5"
+                                       FontWeight="Medium"
+                                       Foreground="{StaticResource SuccessBrush}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Restart as Admin Button if not elevated -->
+                    <Button Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding RestartAsAdminCommand}"
+                            Padding="8,4"
+                            Margin="0,0,10,0"
+                            Visibility="{Binding IsAdministrator, Converter={StaticResource InverseBoolToVis}}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource GeoShield}"
+                                  Fill="{StaticResource WarningBrush}"
+                                  Width="12"
+                                  Height="12"
+                                  Stretch="Uniform"
+                                  Margin="0,0,5,0" />
+                            <TextBlock Text="{Binding Loc.RestartAsAdmin}"
+                                       FontSize="11.5"
+                                       Foreground="{StaticResource WarningBrush}" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Language Switcher: PT / EN Segmented Pill -->
+                    <Border Background="#151518"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="2"
+                            Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton Style="{StaticResource SegmentedRadioButtonStyle}"
+                                         GroupName="AppLang"
+                                         Content="PT"
+                                         IsChecked="{Binding IsPtBrSelected, Mode=TwoWay}"
+                                         Padding="8,3"
+                                         FontSize="11.5" />
+                            <RadioButton Style="{StaticResource SegmentedRadioButtonStyle}"
+                                         GroupName="AppLang"
+                                         Content="EN"
+                                         IsChecked="{Binding IsEnSelected, Mode=TwoWay}"
+                                         Padding="8,3"
+                                         FontSize="11.5" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Minimize to Tray Button (Clean Icon Only) -->
+                    <Button Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding MinimizeToTrayCommand}"
+                            ToolTip="{Binding Loc.TrayMinimize}"
+                            Padding="8,6"
+                            Width="32"
+                            Height="32">
+                        <Path Data="{StaticResource GeoTray}"
+                              Fill="{StaticResource TextSecondaryBrush}"
+                              Width="14"
+                              Height="14"
+                              Stretch="Uniform" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ROW 1: STEPPER PROGRESS BAR (1: ISO, 2: Dest, 3: Tweaks, 4: Build) -->
+        <Border Grid.Row="1"
+                Background="{StaticResource WindowBackground}"
+                Padding="24,14,24,14"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="0,0,0,1">
+            <UniformGrid Columns="4">
+                <!-- Step 1 Tab -->
+                <RadioButton Style="{StaticResource StepperTabStyle}"
+                             GroupName="StepperWorkflow"
+                             IsChecked="{Binding IsStep1, Mode=OneWay}"
+                             Command="{Binding GoToStepCommand}"
+                             CommandParameter="1">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="{StaticResource GeoDisc}"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                              Width="14"
+                              Height="14"
+                              Stretch="Uniform"
+                              Margin="0,0,8,0" />
+                        <TextBlock Text="{Binding Loc.Step1Title}" />
+                    </StackPanel>
+                </RadioButton>
+
+                <!-- Step 2 Tab -->
+                <RadioButton Style="{StaticResource StepperTabStyle}"
+                             GroupName="StepperWorkflow"
+                             IsChecked="{Binding IsStep2, Mode=OneWay}"
+                             Command="{Binding GoToStepCommand}"
+                             CommandParameter="2">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="{StaticResource GeoUsb}"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                              Width="14"
+                              Height="14"
+                              Stretch="Uniform"
+                              Margin="0,0,8,0" />
+                        <TextBlock Text="{Binding Loc.Step2Title}" />
+                    </StackPanel>
+                </RadioButton>
+
+                <!-- Step 3 Tab -->
+                <RadioButton Style="{StaticResource StepperTabStyle}"
+                             GroupName="StepperWorkflow"
+                             IsChecked="{Binding IsStep3, Mode=OneWay}"
+                             Command="{Binding GoToStepCommand}"
+                             CommandParameter="3">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="{StaticResource GeoSparkles}"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                              Width="14"
+                              Height="14"
+                              Stretch="Uniform"
+                              Margin="0,0,8,0" />
+                        <TextBlock Text="{Binding Loc.Step3Title}" />
+                    </StackPanel>
+                </RadioButton>
+
+                <!-- Step 4 Tab -->
+                <RadioButton Style="{StaticResource StepperTabStyle}"
+                             GroupName="StepperWorkflow"
+                             IsChecked="{Binding IsStep4, Mode=OneWay}"
+                             Command="{Binding GoToStepCommand}"
+                             CommandParameter="4">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="{StaticResource GeoTerminal}"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                              Width="14"
+                              Height="14"
+                              Stretch="Uniform"
+                              Margin="0,0,8,0" />
+                        <TextBlock Text="{Binding Loc.Step4Title}" />
+                    </StackPanel>
+                </RadioButton>
+            </UniformGrid>
+        </Border>
+
+        <!-- ROW 2: STEP WORKFLOW CONTENT AREA -->
+        <Grid Grid.Row="2" Margin="24,18,24,18">
+
+            <!-- STEP 1: SOURCE ISO SELECTION -->
+            <Grid Visibility="{Binding IsStep1, Converter={StaticResource BoolToVis}}">
+                <!-- When NO ISO is selected: Drag and drop box -->
+                <Border Background="{StaticResource CardBrush}"
+                        BorderBrush="{StaticResource BorderHighlightBrush}"
+                        BorderThickness="1.5"
+                        CornerRadius="12"
+                        Padding="32"
+                        VerticalAlignment="Stretch"
+                        Visibility="{Binding HasIsoSelected, Converter={StaticResource InverseBoolToVis}}">
+                    <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <StackPanel HorizontalAlignment="Center">
+                            <Border Width="64"
+                                    Height="64"
+                                    CornerRadius="16"
+                                    Background="{StaticResource AccentSubtleBrush}"
+                                    BorderBrush="{StaticResource AccentBrush}"
+                                    BorderThickness="1"
+                                    HorizontalAlignment="Center"
+                                    Margin="0,0,0,16">
+                                <Path Data="{StaticResource GeoUpload}"
+                                      Fill="{StaticResource AccentBrush}"
+                                      Width="28"
+                                      Height="28"
+                                      Stretch="Uniform"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                            </Border>
+
+                            <TextBlock Text="{Binding Loc.DropIsoHere}"
+                                       FontSize="15"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       HorizontalAlignment="Center"
+                                       TextAlignment="Center"
+                                       Margin="0,0,0,6" />
+
+                            <TextBlock Text="Windows 11 (24H2, 23H2) &amp; Windows 10 x64"
+                                       FontSize="12"
+                                       Foreground="{StaticResource TextMutedBrush}"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,0,0,20" />
+
+                            <Button Style="{StaticResource PrimaryButtonStyle}"
+                                    Command="{Binding BrowseIsoCommand}"
+                                    HorizontalAlignment="Center"
+                                    Padding="22,10">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource GeoFolder}"
+                                          Fill="#0b0f14"
+                                          Width="15"
+                                          Height="15"
+                                          Stretch="Uniform"
+                                          Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding Loc.BrowseIso}" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- When ISO IS loaded: Sleek metadata card -->
+                <Border Background="{StaticResource CardBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="28"
+                        VerticalAlignment="Center"
+                        Visibility="{Binding HasIsoSelected, Converter={StaticResource BoolToVis}}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Disc Icon Pill -->
+                        <Border Grid.Column="0"
+                                Width="54"
+                                Height="54"
+                                CornerRadius="12"
+                                Background="{StaticResource AccentSubtleBrush}"
+                                BorderBrush="{StaticResource AccentBrush}"
+                                BorderThickness="1"
+                                Margin="0,0,18,0">
+                            <Path Data="{StaticResource GeoDisc}"
+                                  Fill="{StaticResource AccentBrush}"
+                                  Width="26"
+                                  Height="26"
+                                  Stretch="Uniform"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center" />
+                        </Border>
+
+                        <!-- File Details -->
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding IsoFileName}"
+                                       FontSize="15"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       Margin="0,0,0,3" />
+
+                            <TextBlock Text="{Binding IsoPath}"
+                                       FontSize="12"
+                                       Foreground="{StaticResource TextMutedBrush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       Margin="0,0,0,8" />
+
+                            <StackPanel Orientation="Horizontal">
+                                <!-- Size Pill -->
+                                <Border Background="#202026"
+                                        CornerRadius="4"
+                                        Padding="7,2"
+                                        Margin="0,0,8,0">
+                                    <TextBlock Text="{Binding IsoSizeText}"
+                                               FontSize="11.5"
+                                               FontWeight="Medium"
+                                               Foreground="{StaticResource TextSecondaryBrush}" />
+                                </Border>
+
+                                <!-- Status Pill -->
+                                <Border Background="#15271e"
+                                        CornerRadius="4"
+                                        Padding="7,2">
+                                    <TextBlock Text="{Binding Loc.IsoLoaded}"
+                                               FontSize="11.5"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource SuccessBrush}" />
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Change ISO Button -->
+                        <Button Grid.Column="2"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Command="{Binding BrowseIsoCommand}"
+                                VerticalAlignment="Center"
+                                Padding="14,8">
+                            <TextBlock Text="{Binding Loc.ChooseDifferentIso}" />
+                        </Button>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- STEP 2: TARGET DESTINATION (ISO vs USB) -->
+            <Grid Visibility="{Binding IsStep2, Converter={StaticResource BoolToVis}}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Cards Selector -->
+                <Grid Grid.Row="0" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="16" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Card 1: ISO Image File -->
+                    <RadioButton Grid.Column="0"
+                                 Style="{StaticResource TargetOptionCardStyle}"
+                                 GroupName="TargetSelectionMode"
+                                 IsChecked="{Binding IsIsoOutputMode, Mode=TwoWay}">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Path Data="{StaticResource GeoDisc}"
+                                      Fill="{StaticResource AccentBrush}"
+                                      Width="18"
+                                      Height="18"
+                                      Stretch="Uniform"
+                                      Margin="0,0,10,0" />
+                                <TextBlock Text="{Binding Loc.TargetIsoTitle}"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding Loc.TargetIsoDesc}"
+                                       FontSize="12"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </RadioButton>
+
+                    <!-- Card 2: Bootable USB Drive -->
+                    <RadioButton Grid.Column="2"
+                                 Style="{StaticResource TargetOptionCardStyle}"
+                                 GroupName="TargetSelectionMode"
+                                 IsChecked="{Binding IsUsbOutputMode, Mode=TwoWay}">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Path Data="{StaticResource GeoUsb}"
+                                      Fill="{StaticResource AccentBrush}"
+                                      Width="18"
+                                      Height="18"
+                                      Stretch="Uniform"
+                                      Margin="0,0,10,0" />
+                                <TextBlock Text="{Binding Loc.TargetUsbTitle}"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding Loc.TargetUsbDesc}"
+                                       FontSize="12"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </RadioButton>
+                </Grid>
+
+                <!-- Sub-options for selected target -->
+                <Border Grid.Row="1"
+                        Background="{StaticResource CardBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="20"
+                        VerticalAlignment="Top">
+                    <Grid>
+                        <!-- ISO Target: Output Path Selector -->
+                        <StackPanel Visibility="{Binding IsIsoOutputMode, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="{Binding Loc.SaveAs}"
+                                       FontSize="12.5"
+                                       FontWeight="Medium"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Margin="0,0,0,8" />
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding OutputIsoPath, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,0,8,0"
+                                         Height="38" />
+
+                                <Button Grid.Column="1"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Command="{Binding BrowseOutputIsoCommand}"
+                                        Height="38"
+                                        Padding="14,0">
+                                    <Path Data="{StaticResource GeoFolder}"
+                                          Fill="{StaticResource TextSecondaryBrush}"
+                                          Width="15"
+                                          Height="15"
+                                          Stretch="Uniform" />
+                                </Button>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- USB Target: Drive Dropdown and Format Notice -->
+                        <StackPanel Visibility="{Binding IsUsbOutputMode, Converter={StaticResource BoolToVis}}">
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding Loc.SelectUsbDriveTitle}"
+                                           FontSize="12.5"
+                                           FontWeight="Medium"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center" />
+
+                                <Button Grid.Column="1"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Command="{Binding RefreshUsbDrivesCommand}"
+                                        ToolTip="{Binding Loc.RefreshTooltip}"
+                                        Padding="8,5">
+                                    <Path Data="{StaticResource GeoRefresh}"
+                                          Fill="{StaticResource TextSecondaryBrush}"
+                                          Width="13"
+                                          Height="13"
+                                          Stretch="Uniform" />
+                                </Button>
+                            </Grid>
+
+                            <ComboBox ItemsSource="{Binding UsbDrives}"
+                                      SelectedItem="{Binding SelectedUsbDrive}"
+                                      DisplayMemberPath="DisplayText"
+                                      Margin="0,0,0,14" />
+
+                            <!-- Warning Notice -->
+                            <Border Background="#1f1810"
+                                    BorderBrush="#3d2c18"
+                                    BorderThickness="1"
+                                    CornerRadius="7"
+                                    Padding="12,9">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource GeoShield}"
+                                          Fill="{StaticResource WarningBrush}"
+                                          Width="15"
+                                          Height="15"
+                                          Stretch="Uniform"
+                                          Margin="0,0,10,0"
+                                          VerticalAlignment="Top" />
+                                    <TextBlock Text="{Binding Loc.UsbWarning}"
+                                               FontSize="11.5"
+                                               Foreground="#d4a373"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- STEP 3: TWEAKS AND DEBLOAT (Clean Grid with Icons Only) -->
+            <Grid Visibility="{Binding IsStep3, Converter={StaticResource BoolToVis}}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Header Row with Preset button -->
+                <Grid Grid.Row="0" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding Loc.SelectTweaksTitle}"
+                               FontSize="13.5"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               VerticalAlignment="Center" />
+
+                    <Button Grid.Column="1"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding SelectPresetRecommendedCommand}"
+                            Padding="12,6">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource GeoSparkles}"
+                                  Fill="{StaticResource AccentBrush}"
+                                  Width="13"
+                                  Height="13"
+                                  Stretch="Uniform"
+                                  Margin="0,0,7,0" />
+                            <TextBlock Text="{Binding Loc.PresetRecommended}"
+                                       FontSize="12" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <!-- 2-Column Options Card -->
+                <Border Grid.Row="1"
+                        Background="{StaticResource CardBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="18,14">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Left Column: Bloatware and Privacy -->
+                        <StackPanel Grid.Column="0">
+                            <!-- Bloatware Apps -->
+                            <CheckBox IsChecked="{Binding DebloatOptions.RemoveBloatware}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource GeoGrid}"
+                                          Fill="{StaticResource TextSecondaryBrush}"
+                                          Width="14"
+                                          Height="14"
+                                          Stretch="Uniform"
+                                          Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding Loc.OptBloatware}" />
+                                </StackPanel>
+                            </CheckBox>
+
+                            <!-- AI and Copilot -->
+                            <CheckBox IsChecked="{Binding DebloatOptions.RemoveAiAndCopilot}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource GeoBot}"
+                                          Fill="{StaticResource TextSecondaryBrush}"
+                                          Width="14"
+                                          Height="14"
+                                          Stretch="Uniform"
+                                          Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding Loc.OptAiCopilot}" />
+                                </StackPanel>
+                            </CheckBox>
+
+                            <!-- BitLocker -->
+                            <CheckBox IsChecked="{Binding DebloatOptions.DisableBitlocker}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource GeoLock}"
+                                          Fill="{StaticResource TextSecondaryBrush}"
+                                          Width="14"
+                                          Height="14"
+                                          Stretch="Uniform"
+                                          Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding Loc.OptBitlocker}" />
+                                </StackPanel>
+                            </CheckBox>
+
+                            <!-- Telemetry -->
+                            <CheckBox IsChecked="{Binding DebloatOptions.DisableTelemetry}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource GeoEyeOff}"
+                                          Fill="{StaticResource TextSecondaryBrush}"
+                                          Width="14"
+                                          Height="14"
+                                          Stretch="Uniform"
+                                          Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding Loc.OptTelemetry}" />
+                                </StackPanel>
+                            </CheckBox>
+
+                            <!-- User Folders in This PC -->
+                            <CheckBox IsChecked="{Binding DebloatOptions.RestoreClassicFolders}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource GeoFolder}"
+                                          Fill="{StaticResource TextSecondaryBrush}"
+                                          Width="14"
+                                          Height="14"
+                                          Stretch="Uniform"
+                                          Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding Loc.OptUserFolders}" />
+                                </StackPanel>
+                            </CheckBox>
+
+                            <!-- Remove OneDrive -->
+                            <CheckBox IsChecked="{Binding DebloatOptions.RemoveOneDrive}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource GeoCloudOff}"
+                                          Fill="{StaticResource TextSecondaryBrush}"
+                                          Width="14"
+                                          Height="14"
+                                          Stretch="Uniform"
+                                          Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding Loc.OptOneDrive}" />
+                                </StackPanel>
+                            </CheckBox>
+                        </StackPanel>
+
+                        <!-- Right Column: Hardware, Drivers and System -->
+                        <StackPanel Grid.Column="2">
+                            <!-- Bypass Hardware Requirements -->
+                            <CheckBox IsChecked="{Binding DebloatOptions.BypassHardwareChecks}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource GeoCpu}"
+                                          Fill="{StaticResource TextSecondaryBrush}"
+                                          Width="14"
+                                          Height="14"
+                                          Stretch="Uniform"
+                                          Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding Loc.OptHardware}" />
+                                </StackPanel>
+                            </CheckBox>
+
+                            <!-- Bypass Microsoft Account -->
+                            <CheckBox IsChecked="{Binding DebloatOptions.BypassMicrosoftAccount}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource GeoUser}"
+                                          Fill="{StaticResource TextSecondaryBrush}"
+                                          Width="14"
+                                          Height="14"
+                                          Stretch="Uniform"
+                                          Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding Loc.OptMsa}" />
+                                </StackPanel>
+                            </CheckBox>
+
+                            <!-- Intel RST / VMD Drivers -->
+                            <CheckBox IsChecked="{Binding DebloatOptions.IntegrateIntelRstDrivers}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource GeoHardDrive}"
+                                          Fill="{StaticResource TextSecondaryBrush}"
+                                          Width="14"
+                                          Height="14"
+                                          Stretch="Uniform"
+                                          Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding Loc.OptDrivers}" />
+                                </StackPanel>
+                            </CheckBox>
+
+                            <!-- Remove Edge -->
+                            <CheckBox IsChecked="{Binding DebloatOptions.RemoveEdge}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource GeoGlobe}"
+                                          Fill="{StaticResource TextSecondaryBrush}"
+                                          Width="14"
+                                          Height="14"
+                                          Stretch="Uniform"
+                                          Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding Loc.OptEdge}" />
+                                </StackPanel>
+                            </CheckBox>
+
+                            <!-- ESD Compression -->
+                            <CheckBox IsChecked="{Binding DebloatOptions.ConvertToEsd}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource GeoArchive}"
+                                          Fill="{StaticResource TextSecondaryBrush}"
+                                          Width="14"
+                                          Height="14"
+                                          Stretch="Uniform"
+                                          Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding Loc.OptEsd}" />
+                                </StackPanel>
+                            </CheckBox>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- STEP 4: BUILD AND EXECUTION (Progress + Live Terminal) -->
+            <Grid Visibility="{Binding IsStep4, Converter={StaticResource BoolToVis}}">
+                <Grid.RowDefinitions>
+                    <!-- Progress summary header -->
+                    <RowDefinition Height="Auto" />
+                    <!-- Terminal Console area -->
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Progress and Stats Header -->
+                <Border Grid.Row="0"
+                        Background="{StaticResource CardBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="16,12"
+                        Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Row 0: Stage text and Percentage -->
+                        <Grid Grid.Row="0" Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0"
+                                       Text="{Binding CurrentStageText}"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" />
+
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding ProgressPercentage, StringFormat={}{0}%}"
+                                       FontSize="16"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource AccentBrush}"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+
+                        <!-- Row 1: Progress Bar -->
+                        <ProgressBar Grid.Row="1"
+                                     Value="{Binding ProgressPercentage}"
+                                     IsIndeterminate="{Binding ProgressIndeterminate}"
+                                     Height="6"
+                                     Margin="0,0,0,8" />
+
+                        <!-- Row 2: Status Message and Timers Strip -->
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0"
+                                       Text="{Binding StatusMessage}"
+                                       FontSize="11.5"
+                                       Foreground="{StaticResource TextMutedBrush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center" />
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding ElapsedTimeFormatted, StringFormat='⏱ {0}'}"
+                                           FontSize="11.5"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Margin="0,0,12,0" />
+                                <TextBlock Text="{Binding RemainingTimeFormatted, StringFormat='⌛ {0}'}"
+                                           FontSize="11.5"
+                                           Foreground="{StaticResource TextMutedBrush}" />
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- Live Terminal Console -->
+                <Border Grid.Row="1"
+                        Background="{StaticResource TerminalBackgroundBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="10">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Terminal Title Bar with Copy and Clear Buttons -->
+                        <Grid Grid.Row="0" Margin="4,0,4,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource GeoTerminal}"
+                                      Fill="{StaticResource AccentBrush}"
+                                      Width="13"
+                                      Height="13"
+                                      Stretch="Uniform"
+                                      Margin="0,0,6,0" />
+                                <TextBlock Text="{Binding Loc.ConsoleTitle}"
+                                           FontSize="11.5"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextSecondaryBrush}" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button Style="{StaticResource SecondaryButtonStyle}"
+                                        Command="{Binding CopyLogCommand}"
+                                        ToolTip="{Binding Loc.CopyText}"
+                                        Padding="7,3"
+                                        Margin="0,0,6,0">
+                                    <Path Data="{StaticResource GeoCopy}"
+                                          Fill="{StaticResource TextSecondaryBrush}"
+                                          Width="12"
+                                          Height="12"
+                                          Stretch="Uniform" />
+                                </Button>
+
+                                <Button Style="{StaticResource SecondaryButtonStyle}"
+                                        Command="{Binding ClearLogCommand}"
+                                        ToolTip="{Binding Loc.ClearText}"
+                                        Padding="7,3">
+                                    <Path Data="{StaticResource GeoTrash}"
+                                          Fill="{StaticResource TextSecondaryBrush}"
+                                          Width="12"
+                                          Height="12"
+                                          Stretch="Uniform" />
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Terminal Output Text -->
+                        <TextBox Grid.Row="1"
+                                 Text="{Binding Logs, Mode=OneWay}"
+                                 IsReadOnly="True"
+                                 Background="Transparent"
+                                 Foreground="#94a3b8"
+                                 BorderThickness="0"
+                                 FontFamily="{StaticResource CodeFontFamily}"
+                                 FontSize="11.5"
+                                 VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Auto"
+                                 TextChanged="OnLogTextChanged" />
+                    </Grid>
+                </Border>
+            </Grid>
+
+        </Grid>
+
+        <!-- ROW 3: BOTTOM NAVIGATION AND ACTION BAR -->
+        <Border Grid.Row="3"
+                Background="{StaticResource SurfaceBrush}"
+                Padding="20,12,20,14"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Left: Back Button (Visible on Steps 2 and 3) -->
+                <Button Grid.Column="0"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding PreviousStepCommand}"
+                        Visibility="{Binding CanGoBack, Converter={StaticResource BoolToVis}}"
+                        Padding="16,8">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource GeoArrowLeft}"
+                              Fill="{StaticResource TextPrimaryBrush}"
+                              Width="13"
+                              Height="13"
+                              Stretch="Uniform"
+                              Margin="0,0,6,0" />
+                        <TextBlock Text="{Binding Loc.Back}" />
+                    </StackPanel>
+                </Button>
+
+                <!-- Center: Step Indicator Dots -->
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                    <!-- Dot 1 -->
+                    <Ellipse Width="8" Height="8" Margin="4,0"
+                             Fill="{Binding IsStep1, Converter={StaticResource BoolToStatusColor}}" />
+                    <!-- Dot 2 -->
+                    <Ellipse Width="8" Height="8" Margin="4,0"
+                             Fill="{Binding IsStep2, Converter={StaticResource BoolToStatusColor}}" />
+                    <!-- Dot 3 -->
+                    <Ellipse Width="8" Height="8" Margin="4,0"
+                             Fill="{Binding IsStep3, Converter={StaticResource BoolToStatusColor}}" />
+                    <!-- Dot 4 -->
+                    <Ellipse Width="8" Height="8" Margin="4,0"
+                             Fill="{Binding IsStep4, Converter={StaticResource BoolToStatusColor}}" />
+                </StackPanel>
+
+                <!-- Right Action Buttons -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <!-- Steps 1 and 2: Next Button -->
+                    <Button Command="{Binding NextStepCommand}"
+                            IsEnabled="{Binding CanGoNext}"
+                            Padding="20,8">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsStep3}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsStep4}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Loc.Next}" Margin="0,0,6,0" />
+                            <Path Data="{StaticResource GeoArrowRight}"
+                                  Fill="#0b0f14"
+                                  Width="13"
+                                  Height="13"
+                                  Stretch="Uniform" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Step 3: Start Debloat Button -->
+                    <Button Style="{StaticResource PrimaryButtonStyle}"
+                            Command="{Binding StartProcessCommand}"
+                            Visibility="{Binding IsStep3, Converter={StaticResource BoolToVis}}"
+                            IsEnabled="{Binding CanGoNext}"
+                            Padding="20,8">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource GeoPlay}"
+                                  Fill="#0b0f14"
+                                  Width="13"
+                                  Height="13"
+                                  Stretch="Uniform"
+                                  Margin="0,0,7,0" />
+                            <TextBlock Text="{Binding Loc.StartDebloat}" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Step 4: Cancel Button (while running) -->
+                    <Button Command="{Binding CancelProcessCommand}"
+                            Padding="18,8">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource DangerButtonStyle}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsStep4}" Value="True" />
+                                            <Condition Binding="{Binding IsProcessing}" Value="True" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource GeoStop}"
+                                  Fill="#ffffff"
+                                  Width="13"
+                                  Height="13"
+                                  Stretch="Uniform"
+                                  Margin="0,0,6,0" />
+                            <TextBlock Text="{Binding Loc.CancelOperation}" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Step 4: Start New Debloat Button (when idle/finished) -->
+                    <Button Command="{Binding StartNewDebloatCommand}"
+                            Padding="20,8">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsStep4}" Value="True" />
+                                            <Condition Binding="{Binding IsProcessing}" Value="False" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource GeoRefresh}"
+                                  Fill="#0b0f14"
+                                  Width="13"
+                                  Height="13"
+                                  Stretch="Uniform"
+                                  Margin="0,0,6,0" />
+                            <TextBlock Text="{Binding Loc.StartNew}" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+    </Grid>
+</Window>

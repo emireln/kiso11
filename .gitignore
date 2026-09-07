@@ -1,0 +1,27 @@
+## Visual Studio & .NET build artifacts
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+.vs/
+.idea/
+.vscode/
+
+## Scratch and temporary files
+scratch/
+*.iso
+*.wim
+*.esd
+*.swp
+*~
+
+## OS generated files
+Thumbs.db
+[Ee]hthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
