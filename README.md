@@ -15,7 +15,7 @@
 
 ---
 
-## Este aplicativo foi desenvolvido enquanto eu estudava C# e com auxílio de IA (Muse Spark 1.3). Já havia desenvolvido a ferramenta ETT em 2024 usando Python e C#. Usei a base para fazer o Kiso11 e também é uma fork.
+Este aplicativo foi desenvolvido enquanto eu estudava C# e com auxílio de IA (Muse Spark 1.3). Já havia desenvolvido a ferramenta ETT em 2024 usando Python e C#. Usei a base para fazer o Kiso11 e também é uma fork.
 
 ## Visão Geral
 
