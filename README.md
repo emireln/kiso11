@@ -15,7 +15,9 @@
 
 ---
 
-## 🌟 Visão Geral
+## Este aplicativo foi desenvolvido enquanto eu estudava C# e com auxílio de IA (Muse Spark 1.3). Já havia desenvolvido a ferramenta ETT em 2024 usando Python e C#. Usei a base para fazer o Kiso11 e também é uma fork.
+
+## Visão Geral
 
 O **Kiso11** é uma solução completa para otimizar, despoluir (*debloat*) e personalizar imagens de instalação do Windows 11 e 10. Ele remove bloatware de fábrica, componentes intrusivos de IA (Copilot, Recall), telemetria e restrições artificiais de hardware, permitindo gerar uma **nova ISO debloated** ou gravar diretamente um **Pendrive Bootável UEFI** pronto para uso.
 
@@ -23,9 +25,9 @@ Diferente de scripts complicados ou ferramentas com interfaces web inchadas, o K
 
 ---
 
-## ✨ Recursos Principais
+## Recursos Principais
 
-### 🚀 Aplicativo Desktop em C# (.NET 8 WPF)
+### Aplicativo Desktop em C# (.NET 8 WPF)
 - **UI/UX Personalizada em Passos (Stepper)**: Interface organizada em 4 etapas claras (*Origem ISO -> Destino -> Otimizações -> Execução*), evitando poluição visual e exibindo apenas o necessário para cada decisão.
 - **Design Escuro Moderno (Sem AI-Slop)**: Fundo grafite sóbrio (`#111113`), acento azul ciano (`#44caff`), ícones minimalistas e componentes com cantos arredondados, barras de rolagem e dropdowns customizados sem elementos brutos nativos.
 - **Bilingue (PT-BR & EN)**: Alternância instantânea de idioma com 1 clique diretamente no cabeçalho.
