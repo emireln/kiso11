@@ -11,7 +11,7 @@
 
 ---
 
-> ℹ️ **Sobre este projeto**: O **Kiso11** ([github.com/emireln/kiso11](https://github.com/emireln/kiso11)) é um fork evoluído do [Windows-ISO-Debloater](https://github.com/itsNileshHere/Windows-ISO-Debloater) desenvolvido originalmente por [itsNileshHere](https://github.com/itsNileshHere). Esta versão expande o projeto original adicionando uma aplicação desktop nativa em C# (.NET 8 WPF), suporte a criação de pendrive bootável UEFI com divisão automática de WIM (FAT32), otimizações completas para o Windows 11 24H2 (prevenção de BitLocker, novos componentes de IA) e interface moderna e sóbria sem AI slop.
+> ℹ️ **Sobre este projeto**: O **Kiso11** ([github.com/emireln/kiso11](https://github.com/emireln/kiso11)) é um fork evoluído do [Windows-ISO-Debloater](https://github.com/itsNileshHere/Windows-ISO-Debloater) desenvolvido originalmente por [itsNileshHere](https://github.com/itsNileshHere). Esta versão expande o projeto original adicionando uma aplicação desktop nativa em C# (.NET 8 WPF), suporte a criação de pendrive bootável UEFI com divisão automática de WIM (FAT32), otimizações completas para o Windows 11 24H2 (prevenção de BitLocker, novos componentes de IA) e interface moderna.
 
 ---
 
