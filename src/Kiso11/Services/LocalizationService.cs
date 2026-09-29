@@ -49,8 +49,8 @@ public class LocalizationService : INotifyPropertyChanged
 
     // Header
     public string AppSubtitle => IsPtBr
-        ? "Otimizador de ISO do Windows 11 (24H2/23H2) & Criador de Pendrive Bootável"
-        : "Windows 11 (24H2/23H2) ISO Debloater & Bootable USB Creator";
+        ? "Otimizador de imagens do Windows & criador de mídia de instalação"
+        : "Windows image optimizer & installation media creator";
 
     public string AdminActive => IsPtBr ? "Administrador Ativo" : "Administrator Active";
     public string RestartAsAdmin => IsPtBr ? "Reiniciar como Administrador" : "Restart as Administrator";
@@ -75,13 +75,13 @@ public class LocalizationService : INotifyPropertyChanged
     public string RefreshDrives => IsPtBr ? "Atualizar" : "Refresh";
     public string RefreshTooltip => IsPtBr ? "Atualizar lista de pendrives" : "Refresh USB drives list";
     public string UsbWarning => IsPtBr
-        ? "O pendrive será formatado como FAT32 UEFI compatível com 100% dos computadores. Arquivos de instalação maiores que 4GB serão divididos automaticamente (DISM Split-Image) em partes SWM."
-        : "The USB drive will be formatted as FAT32 UEFI compatible with 100% of PCs. Installation files larger than 4GB will be automatically split (DISM Split-Image) into SWM parts.";
+        ? "A unidade selecionada será apagada e formatada em FAT32. Imagens WIM grandes serão divididas. Em unidades acima de 32 GB, será criada uma partição de inicialização FAT32 de 32 GB."
+        : "The selected drive will be erased and formatted as FAT32. Large WIM images will be split. Drives larger than 32 GB will get a 32 GB FAT32 boot partition.";
 
     // Stepper Titles
     public string Step1Title => IsPtBr ? "Origem ISO" : "Source ISO";
-    public string Step2Title => IsPtBr ? "Destino" : "Destination";
-    public string Step3Title => IsPtBr ? "Otimizações" : "Tweaks";
+    public string Step2Title => IsPtBr ? "Otimizações" : "Tweaks";
+    public string Step3Title => IsPtBr ? "Destino" : "Destination";
     public string Step4Title => IsPtBr ? "Execução" : "Build";
 
     // Stepper Navigation
@@ -103,7 +103,7 @@ public class LocalizationService : INotifyPropertyChanged
 
     // Concise Options with clean labels
     public string OptBloatware => IsPtBr ? "Bloatware Apps (Loja, Jogos)" : "Bloatware Apps (Store, Games)";
-    public string OptAiCopilot => IsPtBr ? "IA, Copilot & Recall (24H2)" : "AI, Copilot & Recall (24H2)";
+    public string OptAiCopilot => IsPtBr ? "IA, Copilot e Recall" : "AI, Copilot, and Recall";
     public string OptBitlocker => IsPtBr ? "Desativar BitLocker Automático" : "Disable Automatic BitLocker";
     public string OptTelemetry => IsPtBr ? "Desativar Telemetria & Anúncios" : "Disable Telemetry & Ads";
     public string OptUserFolders => IsPtBr ? "Pastas de Usuário em 'Este PC'" : "User Folders in 'This PC'";
@@ -113,6 +113,47 @@ public class LocalizationService : INotifyPropertyChanged
     public string OptDrivers => IsPtBr ? "Drivers Intel VMD / RST (NVMe)" : "Intel VMD / RST Drivers (NVMe)";
     public string OptEdge => IsPtBr ? "Remover Microsoft Edge" : "Remove Microsoft Edge";
     public string OptEsd => IsPtBr ? "Compressão Máxima ESD" : "Maximum ESD Compression";
+
+    public string PageSourceTitle => IsPtBr ? "Escolha a ISO do Windows" : "Choose a Windows ISO";
+    public string TitleBarSubtitle => IsPtBr ? "Criador de mídia de instalação" : "Windows installation media";
+    public string BrowsePath => IsPtBr ? "Procurar…" : "Browse…";
+    public string CloseWindowTooltip => IsPtBr ? "Fechar" : "Close";
+    public string WorkflowTitle => IsPtBr ? "FLUXO DE TRABALHO" : "WORKFLOW";
+    public string PageSourceSubtitle => IsPtBr ? "Vamos identificar as edições e preparar a imagem selecionada." : "We’ll identify the editions and prepare the image you choose.";
+    public string SelectIsoAction => IsPtBr ? "Selecionar arquivo ISO" : "Choose ISO file";
+    public string InspectIso => IsPtBr ? "Ler edições da ISO" : "Read ISO editions";
+    public string InspectingIso => IsPtBr ? "Lendo a imagem…" : "Reading image…";
+    public string IsoNeedsInspection => IsPtBr ? "Leia a ISO para ver as edições disponíveis." : "Read the ISO to see its available editions.";
+    public string SupportedMediaNote => IsPtBr ? "Aceita ISOs com install.wim, install.esd ou partes install.swm." : "Supports ISOs containing install.wim, install.esd, or split install.swm files.";
+    public string EditionsFound(int count) => IsPtBr ? $"{count} edição(ões) encontrada(s)." : $"Found {count} edition(s).";
+    public string NoEditionsFound => IsPtBr ? "Nenhuma edição do Windows foi encontrada nesta ISO." : "No Windows editions were found in this ISO.";
+    public string ChooseEdition => IsPtBr ? "Edição que será incluída" : "Edition to include";
+    public string EditionOnlyNote => IsPtBr ? "A mídia gerada incluirá somente a edição selecionada." : "The output media will include only the selected edition.";
+    public string PageCustomizeTitle => IsPtBr ? "Escolha o que mudar" : "Choose what to change";
+    public string PageCustomizeSubtitle => IsPtBr ? "As opções são aplicadas à edição selecionada. Você pode manter o preset ou personalizar cada item." : "Options apply to the selected edition. Keep the preset or choose each change yourself.";
+    public string RecommendedPresetDescription => IsPtBr ? "Uma configuração equilibrada para remover aplicativos promocionais e reduzir sugestões e telemetria." : "A balanced setup that removes promotional apps and reduces suggestions and telemetry.";
+    public string PageOutputTitle => IsPtBr ? "Escolha como salvar" : "Choose where to save";
+    public string PageOutputSubtitle => IsPtBr ? "Gere uma ISO para usar depois ou prepare um pendrive agora." : "Create an ISO to use later or prepare a USB drive now.";
+    public string SaveIsoLabel => IsPtBr ? "Salvar ISO em" : "Save ISO to";
+    public string NoUsbDrives => IsPtBr ? "Nenhuma unidade removível pronta foi encontrada." : "No ready removable drives were found.";
+    public string PageProgressTitle => IsPtBr ? "Preparando sua mídia" : "Building your media";
+    public string PageProgressSubtitle => IsPtBr ? "O Kiso11 está trabalhando na imagem selecionada." : "Kiso11 is working on the selected image.";
+    public string LogTitle => IsPtBr ? "Detalhes da operação" : "Operation details";
+    public string BloatwareDescription => IsPtBr ? "Remove aplicativos provisionados de consumo e recursos opcionais selecionados." : "Removes provisioned consumer apps and selected optional features.";
+    public string AiDescription => IsPtBr ? "Remove pacotes de IA, Copilot e Recall quando existirem na imagem." : "Removes AI, Copilot, and Recall packages when they exist in the image.";
+    public string BitlockerDescription => IsPtBr ? "Impede a criptografia automática do dispositivo durante a configuração inicial." : "Prevents automatic device encryption during initial setup.";
+    public string TelemetryDescription => IsPtBr ? "Reduz coleta de diagnóstico, conteúdo sugerido e anúncios personalizados." : "Reduces diagnostic collection, suggested content, and tailored ads.";
+    public string UserFoldersDescription => IsPtBr ? "Mostra Desktop, Documentos e outras pastas em Este Computador." : "Shows Desktop, Documents, and other folders under This PC.";
+    public string OneDriveDescription => IsPtBr ? "Remove os instaladores do OneDrive da imagem." : "Removes OneDrive setup files from the image.";
+    public string HardwareDescription => IsPtBr ? "Ignora verificações de TPM, Secure Boot, memória e CPU no instalador." : "Skips TPM, Secure Boot, memory, and CPU checks in Windows Setup.";
+    public string MsaDescription => IsPtBr ? "Permite a opção de conta local durante a configuração do Windows." : "Enables the local account option during Windows setup.";
+    public string DriversDescription => IsPtBr ? "Adiciona drivers Intel VMD/RST ao instalador e ao Windows instalado." : "Adds Intel VMD/RST drivers to Windows Setup and the installed image.";
+    public string EdgeDescription => IsPtBr ? "Tenta remover componentes provisionados do Edge; alguns recursos do Windows podem depender dele." : "Attempts to remove provisioned Edge components; some Windows features may depend on it.";
+    public string EsdDescription => IsPtBr ? "Usa compressão de recuperação para reduzir a imagem; pode demorar mais." : "Uses recovery compression to reduce image size; this can take longer.";
+    public string OptionalLabel => IsPtBr ? "Opcional" : "Optional";
+    public string PresetApplied => IsPtBr ? "Preset recomendado aplicado" : "Recommended settings applied";
+    public string ApplyPreset => IsPtBr ? "Aplicar preset" : "Apply preset";
+    public string AdministratorAccessNote => IsPtBr ? "É necessário executar como administrador para alterar imagens do Windows." : "Administrator access is required to service Windows images.";
 
     // Window
     public string WindowTitle => IsPtBr
@@ -148,7 +189,7 @@ public class LocalizationService : INotifyPropertyChanged
     public string Stage2Mounting => IsPtBr ? "Etapa 2 de 6: Montando imagem de instalação (install.wim)" : "Stage 2 of 6: Mounting installation image (install.wim)";
     public string Stage2MountingMsg => IsPtBr ? "Montando install.wim com DISM..." : "Mounting install.wim with DISM...";
     public string Stage3Debloating => IsPtBr ? "Etapa 3 de 6: Removendo aplicativos e bloatware" : "Stage 3 of 6: Removing apps and bloatware";
-    public string Stage3AiRemoval => IsPtBr ? "Etapa 3 de 6: Removendo componentes de IA e Copilot (24H2/23H2)" : "Stage 3 of 6: Removing AI components & Copilot (24H2/23H2)";
+    public string Stage3AiRemoval => IsPtBr ? "Etapa 3 de 6: Removendo componentes de IA e Copilot" : "Stage 3 of 6: Removing AI components and Copilot";
     public string Stage3Registry => IsPtBr ? "Etapa 3 de 6: Aplicando tweaks de registro offline" : "Stage 3 of 6: Applying offline registry tweaks";
     public string Stage3RegistryMsg => IsPtBr ? "Modificando chaves de registro do Windows offline..." : "Modifying offline Windows registry hives...";
     public string Stage4Unmounting => IsPtBr ? "Etapa 4 de 6: Salvando e desmontando imagem" : "Stage 4 of 6: Committing and unmounting image";

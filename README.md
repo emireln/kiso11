@@ -1,7 +1,7 @@
 # Kiso11
 
-> **Modern Windows 11 ISO Debloater, Optimizer & Bootable USB Creator**  
-> *Rápido, limpo, sem AI-slop, nativo para Windows 11 (24H2, 23H2) e Windows 10.*
+> **Windows ISO Customizer & Bootable USB Creator**<br>
+> *Uma ferramenta desktop simples para selecionar uma edição, personalizar a imagem e criar mídia de instalação.*
 
 [![Repository](https://img.shields.io/badge/GitHub-emireln%2Fkiso11-181717?style=for-the-badge&logo=github)](https://github.com/emireln/kiso11)
 [![Fork of](https://img.shields.io/badge/Fork%20of-itsNileshHere%2FWindows--ISO--Debloater-gray?style=for-the-badge&logo=github)](https://github.com/itsNileshHere/Windows-ISO-Debloater)
@@ -11,7 +11,7 @@
 
 ---
 
-> ℹ️ **Sobre este projeto**: O **Kiso11** ([github.com/emireln/kiso11](https://github.com/emireln/kiso11)) é um fork evoluído do [Windows-ISO-Debloater](https://github.com/itsNileshHere/Windows-ISO-Debloater) desenvolvido originalmente por [itsNileshHere](https://github.com/itsNileshHere). Esta versão expande o projeto original adicionando uma aplicação desktop nativa em C# (.NET 8 WPF), suporte a criação de pendrive bootável UEFI com divisão automática de WIM (FAT32), otimizações completas para o Windows 11 24H2 (prevenção de BitLocker, novos componentes de IA) e interface moderna.
+> ℹ️ **Sobre este projeto**: O **Kiso11** ([github.com/emireln/kiso11](https://github.com/emireln/kiso11)) é um fork do [Windows-ISO-Debloater](https://github.com/itsNileshHere/Windows-ISO-Debloater), desenvolvido originalmente por [itsNileshHere](https://github.com/itsNileshHere). Esta versão inclui um aplicativo desktop C# (.NET 8 WPF), seleção de edição e criação de mídia UEFI a partir de imagens `install.wim`, `install.esd` e `install.swm`.
 
 ---
 
@@ -21,15 +21,15 @@ Este aplicativo foi desenvolvido enquanto eu estudava C# e com auxílio de IA (M
 
 O **Kiso11** é uma solução completa para otimizar, despoluir (*debloat*) e personalizar imagens de instalação do Windows 11 e 10. Ele remove bloatware de fábrica, componentes intrusivos de IA (Copilot, Recall), telemetria e restrições artificiais de hardware, permitindo gerar uma **nova ISO debloated** ou gravar diretamente um **Pendrive Bootável UEFI** pronto para uso.
 
-Diferente de scripts complicados ou ferramentas com interfaces web inchadas, o Kiso11 possui um aplicativo nativo em **C# (.NET 8 WPF)** com design sóbrio, limpo e direto ao ponto — sem visuais gerados por IA, sem iconografia genérica e com controle total em tempo real.
+Diferente de scripts complicados ou ferramentas com interfaces web inchadas, o Kiso11 possui um aplicativo nativo em **C# (.NET 8 WPF)** com fluxo guiado, opções descritas com clareza e acompanhamento do processo em tempo real.
 
 ---
 
 ## Recursos Principais
 
 ### Aplicativo Desktop em C# (.NET 8 WPF)
-- **UI/UX Personalizada em Passos (Stepper)**: Interface organizada em 4 etapas claras (*Origem ISO -> Destino -> Otimizações -> Execução*), evitando poluição visual e exibindo apenas o necessário para cada decisão.
-- **Design Escuro Moderno**: Fundo grafite sóbrio (`#111113`), acento azul ciano (`#44caff`), ícones minimalistas e componentes com cantos arredondados, barras de rolagem e dropdowns customizados sem elementos brutos nativos.
+- **Fluxo guiado em 4 etapas**: Escolha da ISO e edição, personalização, destino e execução.
+- **Interface desktop própria**: Barra de título integrada ao Windows, controles de janela padrão, hierarquia visual simples e ações principais em botões grandes.
 - **Bilingue (PT-BR & EN)**: Alternância instantânea de idioma com 1 clique diretamente no cabeçalho.
 - **Bandeja do Sistema (System Tray)**: Botão dedicado para minimizar para a área de notificação do Windows com suporte a restauração por duplo clique e menu de contexto.
 - **Monitoramento em Tempo Real**:
@@ -40,17 +40,19 @@ Diferente de scripts complicados ou ferramentas com interfaces web inchadas, o K
 
 ### 💾 Criação de Pendrive Bootável Integrada
 - **Detecção Segura**: Identifica automaticamente discos removíveis USB, filtrando unidades do sistema para evitar acidentes.
-- **Compatibilidade UEFI Universal**: Formata em **FAT32**, permitindo boot nativo em 100% das placas-mãe sem necessidade de desativar o Secure Boot.
-- **Split-Image Automático**: Se o arquivo `install.wim` exceder 4GB (comum no Windows 11), o Kiso11 o divide automaticamente em partes `.swm` via DISM (`install.swm`, `install2.swm`), respeitando a especificação oficial da Microsoft para pendrives FAT32.
+- **Mídia UEFI em FAT32**: Cria mídia de instalação FAT32 e divide imagens WIM grandes para caber no limite de arquivo do sistema. A compatibilidade final depende do firmware e do hardware.
+- **Split-Image Automático**: Se o `install.wim` exceder o limite de arquivo do FAT32, o Kiso11 o divide em partes `.swm` via DISM.
+- **Unidades maiores que 32 GB**: Como o formatador FAT32 do Windows limita o tamanho do volume, é criada uma partição de inicialização FAT32 de 32 GB; o conteúdo restante do disco fica sem partição.
 - **Alternativa em Arquivo ISO**: Possibilidade de salvar como arquivo `.iso` inicializável gerado via `oscdimg` (com download transparente caso não esteja instalado).
 
-### 🛡️ Compatibilidade Total com Windows 11 24H2 e 23H2
-- **Prevenção do BitLocker 24H2**: Desativa a criptografia automática forçada de partição (`PreventDeviceEncryption`) introduzida na versão 24H2.
+### 🛡️ Opções de personalização do Windows
+- **Criptografia automática do dispositivo**: Define `PreventDeviceEncryption` para impedir a criptografia automática durante a instalação quando a imagem oferece esse comportamento.
 - **Remoção de IA e Copilot**: Remove pacotes provisionados do Copilot, Recall e bibliotecas do subsistema de IA (`AIX`, `CoreAI`).
 - **Bypass de Requisitos de Hardware**: Injeta regras `LabConfig` no `install.wim` e `boot.wim` (WinPE Setup) para contornar checagens de TPM 2.0, Secure Boot, CPU e RAM em computadores mais antigos.
 - **Bypass de Conta Microsoft**: Configura o OOBE (`BypassNRO`) e embute `autounattend.xml` para permitir instalação com Conta Local tradicional sem exigir internet.
 - **Remoção Seletiva de Bloatware**: Remove dezenas de apps promocionais (Bing News, Clipchamp, Jogos, etc.), preservando ferramentas essenciais (Windows Defender, Calculadora, Fotos, Terminal, Bloco de Notas).
-- **Integração de Drivers Intel RST / VMD**: Opção de embutir drivers de armazenamento para reconhecimento de SSDs NVMe em notebooks Intel de 11ª a 14ª+ gerações.
+- **Integração de Drivers Intel RST / VMD**: Adiciona os drivers ao Windows Setup e à imagem da edição selecionada para reconhecimento de armazenamento durante a instalação e após ela.
+- **Seleção da edição**: Lê as edições presentes em `install.wim`, `install.esd` ou `install.swm`. A mídia gerada inclui somente a edição escolhida.
 
 ---
 
@@ -78,7 +80,6 @@ Kiso11/
 │       ├── ViewModels/        # Lógica de controle e timers
 │       ├── Views/             # Interface gráfica principal
 │       └── app.manifest       # Manifest de elevação UAC
-├── autounattend.xml           # Arquivo unattended atualizado na raiz
 ├── LICENSE                    # Licença GPL-3.0
 └── README.md                  # Documentação do projeto
 ```
@@ -92,15 +93,15 @@ Kiso11/
 1. Execute o **`Kiso11.exe`** (localizado em `bin/Release/Kiso11/Kiso11.exe` ou compile pelo código-fonte).
 2. O aplicativo solicitará elevação de **Administrador** (necessária para operações DISM e gravação de disco).
 3. **Passo 1**: Selecione o arquivo `.iso` do Windows (arraste o arquivo para a janela ou clique em *Procurar ISO*).
-4. **Passo 2**: Escolha o destino:
+4. **Passo 2**: Use o **Preset Recomendado** ou escolha as opções de otimização.
+5. **Passo 3**: Escolha como salvar:
    - *Gerar Arquivo ISO*: Define o caminho do novo arquivo `.iso` otimizado.
-   - *Gravar em Pendrive Bootável*: Selecione a unidade USB desejada na lista.
-5. **Passo 3**: Use o **Preset Recomendado** (padrão) ou ajuste as caixas de seleção conforme preferir.
-6. Clique em **Iniciar Otimização**. Acompanhe o progresso, as fases e os logs em tempo real.
+   - *Gravar em Pendrive Bootável*: Selecione a unidade USB desejada. O conteúdo atual dessa unidade será apagado.
+6. Revise a seleção e clique em **Iniciar Otimização**. Acompanhe o progresso e os logs durante a execução.
 
 ### Opção 2: Compilando a partir do Código-Fonte
 
-Certifique-se de ter o [.NET 8 SDK](https://dotnet.microsoft.com/download) ou superior instalado:
+Certifique-se de ter o [.NET 8 SDK](https://dotnet.microsoft.com/download) ou superior instalado. O aplicativo usa DISM, PowerShell e Robocopy do Windows. O DISM precisa oferecer suporte à versão da imagem escolhida; imagens mais recentes podem exigir um Windows ADK mais novo. Consulte a [matriz de compatibilidade do DISM](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/dism-supported-platforms?view=windows-11).
 
 ```powershell
 # Restaurar dependências e compilar
@@ -130,7 +131,7 @@ Para ambientes de linha de comando ou automação:
 | :--- | :--- |
 | **Apps de Terceiros / Bloat** | Remoção de Candy Crush, TikTok, Spotify, Disney+, Clipchamp, etc. |
 | **IA & Copilot / Recall** | Remoção de pacotes `Copilot`, `Recall`, `AIX`, `CoreAI` e chaves de telemetria. |
-| **BitLocker no 24H2** | Define `PreventDeviceEncryption = 1` para evitar bloqueio indesejado de partições. |
+| **Criptografia automática** | Define `PreventDeviceEncryption = 1` para desativar a criptografia automática do dispositivo durante a instalação. |
 | **Requisitos de Instalação** | Bypasses de TPM 2.0, Secure Boot, RAM e CPU via `LabConfig` no instalador. |
 | **Conta Microsoft (OOBE)** | Habilita `BypassNRO` para permitir criação de Conta Local sem internet. |
 | **Telemetria** | Desativação de relatórios de diagnóstico, ID de anúncios e sugestões no Iniciar. |

@@ -21,6 +21,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\..\scripts\autounattend.xml" Link="autounattend.xml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\Drivers\**\*.*" Link="Drivers\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="System.Management" Version="10.0.11" />
   </ItemGroup>
 

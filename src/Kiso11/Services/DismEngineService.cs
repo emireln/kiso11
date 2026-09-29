@@ -12,36 +12,62 @@ namespace Kiso11.Services;
 public class DismEngineService
 {
     private readonly ProcessRunner _runner;
+    private readonly string _dismExecutable;
 
     public DismEngineService(ProcessRunner runner)
     {
         _runner = runner;
+        _dismExecutable = WindowsToolLocator.FindDism();
     }
 
-    public async Task<List<string>> GetWimEditionsAsync(string wimPath, CancellationToken cancellationToken = default)
+    public async Task<List<WindowsImageEdition>> GetWimEditionsAsync(string imagePath, CancellationToken cancellationToken = default)
     {
-        var editions = new List<string>();
-        if (!File.Exists(wimPath)) return editions;
+        var editions = new List<WindowsImageEdition>();
+        if (!File.Exists(imagePath)) return editions;
 
-        var output = await _runner.RunAndCaptureOutputAsync("dism.exe", $"/Get-WimInfo /WimFile:\"{wimPath}\" /English", null, cancellationToken);
-        var matches = Regex.Matches(output, @"Name\s*:\s*(.+)");
-        foreach (Match m in matches)
+        var args = $"/Get-WimInfo /WimFile:\"{imagePath}\" /English";
+        var output = await _runner.RunAndCaptureOutputAsync(_dismExecutable, args, null, cancellationToken);
+        var blocks = Regex.Split(output, @"(?m)^\s*Index\s*:\s*(\d+)\s*$");
+        for (var i = 1; i + 1 < blocks.Length; i += 2)
         {
-            var name = m.Groups[1].Value.Trim();
-            if (!string.IsNullOrEmpty(name))
+            if (!int.TryParse(blocks[i], out var index)) continue;
+            var block = blocks[i + 1];
+            string ReadField(string field) => Regex.Match(block, $@"(?m)^\s*{field}\s*:\s*(.+?)\s*$").Groups[1].Value.Trim();
+            var name = ReadField("Name");
+            if (name.Length == 0) continue;
+            editions.Add(new WindowsImageEdition
             {
-                editions.Add(name);
-            }
+                Index = index,
+                Name = name,
+                Architecture = ReadField("Architecture"),
+                Version = ReadField("Version")
+            });
         }
 
         return editions;
+    }
+
+    public async Task ExportImageToWimAsync(string sourceImagePath, int sourceIndex, string destinationWim, CancellationToken cancellationToken = default)
+    {
+        var args = $"/Export-Image /SourceImageFile:\"{sourceImagePath}\" /SourceIndex:{sourceIndex} /DestinationImageFile:\"{destinationWim}\" /Compress:max /CheckIntegrity";
+        if (Path.GetExtension(sourceImagePath).Equals(".swm", StringComparison.OrdinalIgnoreCase))
+        {
+            var pattern = Path.Combine(Path.GetDirectoryName(sourceImagePath)!, Path.GetFileNameWithoutExtension(sourceImagePath) + "*.swm");
+            args += $" /SWMFile:\"{pattern}\"";
+        }
+
+        var exit = await _runner.RunAsync(_dismExecutable, args, null, cancellationToken);
+        if (exit != 0 || !File.Exists(destinationWim))
+        {
+            throw new InvalidOperationException($"Falha ao exportar a imagem Windows selecionada (código {exit}).");
+        }
     }
 
     public async Task MountWimAsync(string wimPath, int index, string mountDir, CancellationToken cancellationToken = default)
     {
         Directory.CreateDirectory(mountDir);
         var args = $"/Mount-Image /ImageFile:\"{wimPath}\" /Index:{index} /MountDir:\"{mountDir}\"";
-        var exit = await _runner.RunAsync("dism.exe", args, null, cancellationToken);
+        var exit = await _runner.RunAsync(_dismExecutable, args, null, cancellationToken);
         if (exit != 0)
         {
             throw new InvalidOperationException($"Falha ao montar WIM no diretório {mountDir} (código {exit}).");
@@ -52,7 +78,7 @@ public class DismEngineService
     {
         var action = commit ? "/Commit" : "/Discard";
         var args = $"/Unmount-Image /MountDir:\"{mountDir}\" {action}";
-        var exit = await _runner.RunAsync("dism.exe", args, null, cancellationToken);
+        var exit = await _runner.RunAsync(_dismExecutable, args, null, cancellationToken);
         if (exit != 0)
         {
             throw new InvalidOperationException($"Falha ao desmontar WIM em {mountDir} (código {exit}).");
@@ -63,12 +89,12 @@ public class DismEngineService
     {
         try
         {
-            await _runner.RunAsync("dism.exe", $"/Unmount-Image /MountDir:\"{mountDir}\" /Discard", null, CancellationToken.None);
+            await _runner.RunAsync(_dismExecutable, $"/Unmount-Image /MountDir:\"{mountDir}\" /Discard", null, CancellationToken.None);
         }
         catch { }
         try
         {
-            await _runner.RunAsync("dism.exe", "/Cleanup-Wim", null, CancellationToken.None);
+            await _runner.RunAsync(_dismExecutable, "/Cleanup-Wim", null, CancellationToken.None);
         }
         catch { }
     }
@@ -118,7 +144,7 @@ public class DismEngineService
             "Microsoft.Xbox.TCUI*"
         ];
 
-        var installedOutput = await _runner.RunAndCaptureOutputAsync("dism.exe", $"/Image:\"{mountDir}\" /Get-ProvisionedAppxPackages", null, cancellationToken);
+        var installedOutput = await _runner.RunAndCaptureOutputAsync(_dismExecutable, $"/Image:\"{mountDir}\" /Get-ProvisionedAppxPackages", null, cancellationToken);
         var pkgMatches = Regex.Matches(installedOutput, @"PackageName\s*:\s*(.+)");
         var installedPackages = pkgMatches.Select(m => m.Groups[1].Value.Trim()).ToList();
 
@@ -138,7 +164,7 @@ public class DismEngineService
             cancellationToken.ThrowIfCancellationRequested();
             current++;
             onProgress((int)(current * 100.0 / Math.Max(1, total)), $"Removendo bloatware ({current}/{total}): {pkg}");
-            await _runner.RunAsync("dism.exe", $"/Image:\"{mountDir}\" /Remove-ProvisionedAppxPackage /PackageName:\"{pkg}\"", null, cancellationToken);
+            await _runner.RunAsync(_dismExecutable, $"/Image:\"{mountDir}\" /Remove-ProvisionedAppxPackage /PackageName:\"{pkg}\"", null, cancellationToken);
         }
 
         // Capabilities (Features on Demand)
@@ -152,7 +178,7 @@ public class DismEngineService
             "Media.WindowsMediaPlayer*"
         ];
 
-        var capsOutput = await _runner.RunAndCaptureOutputAsync("dism.exe", $"/Image:\"{mountDir}\" /Get-Capabilities", null, cancellationToken);
+        var capsOutput = await _runner.RunAndCaptureOutputAsync(_dismExecutable, $"/Image:\"{mountDir}\" /Get-Capabilities", null, cancellationToken);
         var capMatches = Regex.Matches(capsOutput, @"Capability Identity\s*:\s*(.+)");
         var installedCaps = capMatches.Select(m => m.Groups[1].Value.Trim()).ToList();
 
@@ -162,7 +188,7 @@ public class DismEngineService
             var matchedCaps = installedCaps.Where(c => Regex.IsMatch(c, regex, RegexOptions.IgnoreCase)).ToList();
             foreach (var cap in matchedCaps)
             {
-                await _runner.RunAsync("dism.exe", $"/Image:\"{mountDir}\" /Remove-Capability /CapabilityName:\"{cap}\"", null, cancellationToken);
+                await _runner.RunAsync(_dismExecutable, $"/Image:\"{mountDir}\" /Remove-Capability /CapabilityName:\"{cap}\"", null, cancellationToken);
             }
         }
     }
@@ -182,7 +208,7 @@ public class DismEngineService
             "Microsoft.WritingAssistant*"
         ];
 
-        var installedOutput = await _runner.RunAndCaptureOutputAsync("dism.exe", $"/Image:\"{mountDir}\" /Get-ProvisionedAppxPackages", null, cancellationToken);
+        var installedOutput = await _runner.RunAndCaptureOutputAsync(_dismExecutable, $"/Image:\"{mountDir}\" /Get-ProvisionedAppxPackages", null, cancellationToken);
         var pkgMatches = Regex.Matches(installedOutput, @"PackageName\s*:\s*(.+)");
         var installedPackages = pkgMatches.Select(m => m.Groups[1].Value.Trim()).ToList();
 
@@ -195,12 +221,12 @@ public class DismEngineService
             foreach (var pkg in matched)
             {
                 onProgress(50, $"Removendo componente de IA: {pkg}");
-                await _runner.RunAsync("dism.exe", $"/Image:\"{mountDir}\" /Remove-ProvisionedAppxPackage /PackageName:\"{pkg}\"", null, cancellationToken);
+                await _runner.RunAsync(_dismExecutable, $"/Image:\"{mountDir}\" /Remove-ProvisionedAppxPackage /PackageName:\"{pkg}\"", null, cancellationToken);
             }
         }
 
         // Disable Recall feature if present
-        await _runner.RunAsync("dism.exe", $"/Image:\"{mountDir}\" /Disable-Feature /FeatureName:Recall /Remove", null, cancellationToken);
+        await _runner.RunAsync(_dismExecutable, $"/Image:\"{mountDir}\" /Disable-Feature /FeatureName:Recall /Remove", null, cancellationToken);
     }
 
     public async Task RemoveOneDriveFilesAsync(string mountDir, CancellationToken cancellationToken = default)
@@ -225,7 +251,7 @@ public class DismEngineService
 
     public async Task RemoveEdgeAsync(string mountDir, CancellationToken cancellationToken = default)
     {
-        await _runner.RunAsync("dism.exe", $"/Image:\"{mountDir}\" /Remove-Edge", null, cancellationToken);
+        await _runner.RunAsync(_dismExecutable, $"/Image:\"{mountDir}\" /Remove-Edge", null, cancellationToken);
 
         string[] edgePatterns =
         [
@@ -235,7 +261,7 @@ public class DismEngineService
             "MicrosoftWindows.Client.WebExperience*"
         ];
 
-        var installedOutput = await _runner.RunAndCaptureOutputAsync("dism.exe", $"/Image:\"{mountDir}\" /Get-ProvisionedAppxPackages", null, cancellationToken);
+        var installedOutput = await _runner.RunAndCaptureOutputAsync(_dismExecutable, $"/Image:\"{mountDir}\" /Get-ProvisionedAppxPackages", null, cancellationToken);
         var pkgMatches = Regex.Matches(installedOutput, @"PackageName\s*:\s*(.+)");
         var installedPackages = pkgMatches.Select(m => m.Groups[1].Value.Trim()).ToList();
 
@@ -245,7 +271,7 @@ public class DismEngineService
             var matched = installedPackages.Where(p => Regex.IsMatch(p, regex, RegexOptions.IgnoreCase));
             foreach (var pkg in matched)
             {
-                await _runner.RunAsync("dism.exe", $"/Image:\"{mountDir}\" /Remove-ProvisionedAppxPackage /PackageName:\"{pkg}\"", null, cancellationToken);
+                await _runner.RunAsync(_dismExecutable, $"/Image:\"{mountDir}\" /Remove-ProvisionedAppxPackage /PackageName:\"{pkg}\"", null, cancellationToken);
             }
         }
     }
@@ -262,7 +288,7 @@ public class DismEngineService
             await _runner.RunAsync("reg.exe", $"load HKLM\\kSYSTEM \"{systemHive}\"", null, cancellationToken);
             await _runner.RunAsync("reg.exe", $"load HKLM\\kNTUSER \"{ntuserHive}\"", null, cancellationToken);
 
-            // 1. BitLocker 24H2 - Prevent automatic device encryption
+            // 1. Prevent automatic device encryption during setup
             if (options.DisableBitlockerEncryption)
             {
                 await _runner.RunAsync("reg.exe", "add \"HKLM\\kSYSTEM\\ControlSet001\\Control\\BitLocker\" /v \"PreventDeviceEncryption\" /t REG_DWORD /d \"1\" /f", null, cancellationToken);
@@ -349,16 +375,22 @@ public class DismEngineService
         if (!File.Exists(bootWimPath)) return;
 
         Directory.CreateDirectory(bootMountDir);
+        var mounted = false;
         try
         {
-            await _runner.RunAsync("dism.exe", $"/Mount-Image /ImageFile:\"{bootWimPath}\" /Index:2 /MountDir:\"{bootMountDir}\"", null, cancellationToken);
+            var mountExit = await _runner.RunAsync(_dismExecutable, $"/Mount-Image /ImageFile:\"{bootWimPath}\" /Index:2 /MountDir:\"{bootMountDir}\"", null, cancellationToken);
+            if (mountExit != 0) throw new InvalidOperationException($"Could not mount Windows Setup image 2 (exit code {mountExit}).");
+            mounted = true;
 
             var systemHive = Path.Combine(bootMountDir, @"Windows\System32\config\SYSTEM");
             if (File.Exists(systemHive))
             {
+                var hiveLoaded = false;
                 try
                 {
-                    await _runner.RunAsync("reg.exe", $"load HKLM\\xSYSTEM \"{systemHive}\"", null, cancellationToken);
+                    var loadExit = await _runner.RunAsync("reg.exe", $"load HKLM\\xSYSTEM \"{systemHive}\"", null, cancellationToken);
+                    if (loadExit != 0) throw new InvalidOperationException($"Could not load the Windows Setup registry hive (exit code {loadExit}).");
+                    hiveLoaded = true;
                     await _runner.RunAsync("reg.exe", "add \"HKLM\\xSYSTEM\\Setup\\LabConfig\" /v \"BypassTPMCheck\" /t REG_DWORD /d \"1\" /f", null, cancellationToken);
                     await _runner.RunAsync("reg.exe", "add \"HKLM\\xSYSTEM\\Setup\\LabConfig\" /v \"BypassSecureBootCheck\" /t REG_DWORD /d \"1\" /f", null, cancellationToken);
                     await _runner.RunAsync("reg.exe", "add \"HKLM\\xSYSTEM\\Setup\\LabConfig\" /v \"BypassRAMCheck\" /t REG_DWORD /d \"1\" /f", null, cancellationToken);
@@ -368,34 +400,68 @@ public class DismEngineService
                 }
                 finally
                 {
-                    await _runner.RunAsync("reg.exe", "unload HKLM\\xSYSTEM", null, CancellationToken.None);
+                    if (hiveLoaded) await _runner.RunAsync("reg.exe", "unload HKLM\\xSYSTEM", null, CancellationToken.None);
                 }
             }
 
-            await _runner.RunAsync("dism.exe", $"/Unmount-Image /MountDir:\"{bootMountDir}\" /Commit", null, cancellationToken);
+            var unmountExit = await _runner.RunAsync(_dismExecutable, $"/Unmount-Image /MountDir:\"{bootMountDir}\" /Commit", null, cancellationToken);
+            if (unmountExit != 0) throw new InvalidOperationException($"Could not commit Windows Setup image (exit code {unmountExit}).");
+            mounted = false;
         }
         catch
         {
-            try { await _runner.RunAsync("dism.exe", $"/Unmount-Image /MountDir:\"{bootMountDir}\" /Discard", null, CancellationToken.None); } catch { }
+            if (mounted)
+            {
+                try { await _runner.RunAsync(_dismExecutable, $"/Unmount-Image /MountDir:\"{bootMountDir}\" /Discard", null, CancellationToken.None); } catch { }
+            }
+            throw;
         }
     }
 
-    public async Task IntegrateDriversAsync(string mountDir, string driversDir, CancellationToken cancellationToken = default)
+    public async Task IntegrateDriversAsync(string mountDir, string driversDir, string bootWimPath, string bootMountDir, CancellationToken cancellationToken = default)
     {
         if (!Directory.Exists(driversDir)) return;
-        await _runner.RunAsync("dism.exe", $"/Image:\"{mountDir}\" /Add-Driver /Driver:\"{driversDir}\" /Recurse /ForceUnsigned", null, cancellationToken);
+        var installExit = await _runner.RunAsync(_dismExecutable, $"/Image:\"{mountDir}\" /Add-Driver /Driver:\"{driversDir}\" /Recurse /ForceUnsigned", null, cancellationToken);
+        if (installExit != 0)
+        {
+            throw new InvalidOperationException($"Falha ao integrar drivers na imagem do Windows (código {installExit}).");
+        }
+
+        if (!File.Exists(bootWimPath)) return;
+        try
+        {
+            await MountWimAsync(bootWimPath, 2, bootMountDir, cancellationToken);
+            var bootExit = await _runner.RunAsync(_dismExecutable, $"/Image:\"{bootMountDir}\" /Add-Driver /Driver:\"{driversDir}\" /Recurse /ForceUnsigned", null, cancellationToken);
+            if (bootExit != 0)
+            {
+                throw new InvalidOperationException($"Falha ao integrar drivers no ambiente do Windows Setup (código {bootExit}).");
+            }
+            await UnmountWimAsync(bootMountDir, commit: true, cancellationToken);
+        }
+        catch
+        {
+            try { await _runner.RunAsync(_dismExecutable, $"/Unmount-Image /MountDir:\"{bootMountDir}\" /Discard", null, CancellationToken.None); } catch { }
+            throw;
+        }
     }
 
-    public async Task OptimizeAndExportWimAsync(string sourceWim, bool compressEsd, CancellationToken cancellationToken = default)
+    public async Task OptimizeAndExportWimAsync(string sourceWim, int sourceIndex, bool compressEsd, CancellationToken cancellationToken = default)
     {
-        var tempWim = Path.Combine(Path.GetDirectoryName(sourceWim)!, "install_optimized.wim");
+        var extension = compressEsd ? ".esd" : ".wim";
+        var optimizedPath = Path.Combine(Path.GetDirectoryName(sourceWim)!, "install_optimized" + extension);
         var compressArg = compressEsd ? "/Compress:recovery" : "/Compress:max";
 
-        var exit = await _runner.RunAsync("dism.exe", $"/Export-Image /SourceImageFile:\"{sourceWim}\" /SourceIndex:1 /DestinationImageFile:\"{tempWim}\" {compressArg} /CheckIntegrity", null, cancellationToken);
-        if (exit == 0 && File.Exists(tempWim))
+        var exit = await _runner.RunAsync(_dismExecutable, $"/Export-Image /SourceImageFile:\"{sourceWim}\" /SourceIndex:{sourceIndex} /DestinationImageFile:\"{optimizedPath}\" {compressArg} /CheckIntegrity", null, cancellationToken);
+        if (exit != 0 || !File.Exists(optimizedPath))
         {
-            File.Delete(sourceWim);
-            File.Move(tempWim, sourceWim);
+            throw new InvalidOperationException($"Falha ao otimizar a imagem Windows selecionada (código {exit}).");
         }
+
+        var originalDirectory = Path.GetDirectoryName(sourceWim)!;
+        foreach (var original in Directory.GetFiles(originalDirectory, "install*.wim").Concat(Directory.GetFiles(originalDirectory, "install*.esd")))
+        {
+            if (!original.Equals(optimizedPath, StringComparison.OrdinalIgnoreCase)) File.Delete(original);
+        }
+        File.Move(optimizedPath, Path.Combine(originalDirectory, "install" + extension), overwrite: true);
     }
 }

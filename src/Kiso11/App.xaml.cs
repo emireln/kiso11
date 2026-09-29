@@ -44,8 +44,8 @@ public partial class App : System.Windows.Application
 
             var win = new Views.MainWindow();
             var vm = win.DataContext as ViewModels.MainViewModel;
-            win.Width = 820;
-            win.Height = 620;
+            win.Width = 1080;
+            win.Height = 760;
 
             void SaveStep(int step, string filename)
             {
@@ -56,18 +56,18 @@ public partial class App : System.Windows.Application
                     vm.CurrentStep = step;
                     if (filename.Contains("loaded"))
                     {
-                        var dummyIso = Path.Combine(outputDir, "Win11_24H2_BrazilianPortuguese_x64.iso");
+                        var dummyIso = Path.Combine(outputDir, "Windows11_SelectedEdition_x64.iso");
                         if (!File.Exists(dummyIso)) File.WriteAllBytes(dummyIso, new byte[1024]);
                         vm.IsoPath = dummyIso;
-                        vm.IsoFileName = "Win11_24H2_BrazilianPortuguese_x64.iso";
+                        vm.IsoFileName = "Windows11_SelectedEdition_x64.iso";
                         vm.IsoSizeText = "5.42 GB";
                     }
                     else if (step > 1)
                     {
                         vm.IsIsoValid = true;
-                        vm.IsoPath = @"C:\ISO\Win11_24H2_BrazilianPortuguese_x64.iso";
+                        vm.IsoPath = @"C:\ISO\Windows11_SelectedEdition_x64.iso";
                     }
-                    if (step == 2)
+                    if (step == 3)
                     {
                         vm.OutputMode = Models.OutputMode.BootableUsb;
                     }
@@ -78,19 +78,19 @@ public partial class App : System.Windows.Application
                         vm.StatusMessage = "Processando pacotes AppX no WIM (68%)...";
                         vm.ElapsedTimeFormatted = "02:14";
                         vm.EstimatedRemainingFormatted = "01:05";
-                        vm.LogText = "[Kiso11] Iniciando otimização da ISO: Win11_24H2_BrazilianPortuguese_x64.iso\n[Kiso11] Extraindo arquivos da imagem...\n[Kiso11] Montando install.wim...\n[DISM] Removendo pacotes AppX inúteis (BingNews, Clipchamp, Xbox, etc.)...\n[DISM] Removendo IA, Copilot e Recall provisionados...\n[DISM] Configurando Bypass de Requisitos de Hardware (LabConfig TPM/SecureBoot)...\n[DISM] Habilitando BypassNRO (Conta Local sem internet)...";
+                        vm.LogText = "[Kiso11] Iniciando otimização da ISO: Windows11_SelectedEdition_x64.iso\n[Kiso11] Extraindo arquivos da imagem...\n[Kiso11] Montando install.wim...\n[DISM] Removendo pacotes AppX selecionados...\n[DISM] Removendo componentes de IA disponíveis...\n[DISM] Configurando bypasses opcionais do Windows Setup...";
                     }
                 }
                 var visual = win.Content as FrameworkElement;
                 if (visual != null)
                 {
-                    visual.Width = 820;
-                    visual.Height = 620;
-                    visual.Measure(new Size(820, 620));
-                    visual.Arrange(new Rect(0, 0, 820, 620));
+                    visual.Width = 1080;
+                    visual.Height = 760;
+                    visual.Measure(new Size(1080, 760));
+                    visual.Arrange(new Rect(0, 0, 1080, 760));
                     visual.UpdateLayout();
 
-                    var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(820, 620, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                    var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(1080, 760, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
                     rtb.Render(visual);
 
                     var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
@@ -100,13 +100,13 @@ public partial class App : System.Windows.Application
                 }
             }
 
+            Services.LocalizationService.Instance.CurrentLanguage = Services.AppLanguage.PtBr;
             SaveStep(1, "step1_iso.png");
             SaveStep(1, "step1_iso_loaded.png");
-            SaveStep(2, "step2_target.png");
-            Services.LocalizationService.Instance.CurrentLanguage = Services.AppLanguage.PtBr;
-            SaveStep(3, "step3_tweaks_pt.png");
+            SaveStep(2, "step2_tweaks_pt.png");
             Services.LocalizationService.Instance.CurrentLanguage = Services.AppLanguage.En;
-            SaveStep(3, "step3_tweaks_en.png");
+            SaveStep(2, "step2_tweaks_en.png");
+            SaveStep(3, "step3_target.png");
             SaveStep(4, "step4_progress.png");
 
             Shutdown(0);
@@ -118,6 +118,12 @@ public partial class App : System.Windows.Application
             File.AppendAllText(LogFile, "App: creating MainWindow...\n");
             var mainWindow = new Views.MainWindow();
             MainWindow = mainWindow;
+            if (e.Args.Length > 1 && e.Args[0].Equals("--resume-state", StringComparison.OrdinalIgnoreCase)
+                && mainWindow.DataContext is ViewModels.MainViewModel resumeVm)
+            {
+                var statePath = e.Args[1];
+                mainWindow.Loaded += async (_, _) => await resumeVm.RestoreElevationStateAsync(statePath);
+            }
 
             File.AppendAllText(LogFile, "App: calling mainWindow.Show()...\n");
             mainWindow.Show();
