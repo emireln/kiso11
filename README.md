@@ -29,7 +29,7 @@ Diferente de scripts complicados ou ferramentas com interfaces web inchadas, o K
 
 ### Aplicativo Desktop em C# (.NET 8 WPF)
 - **UI/UX Personalizada em Passos (Stepper)**: Interface organizada em 4 etapas claras (*Origem ISO -> Destino -> Otimizações -> Execução*), evitando poluição visual e exibindo apenas o necessário para cada decisão.
-- **Design Escuro Moderno (Sem AI-Slop)**: Fundo grafite sóbrio (`#111113`), acento azul ciano (`#44caff`), ícones minimalistas e componentes com cantos arredondados, barras de rolagem e dropdowns customizados sem elementos brutos nativos.
+- **Design Escuro Moderno**: Fundo grafite sóbrio (`#111113`), acento azul ciano (`#44caff`), ícones minimalistas e componentes com cantos arredondados, barras de rolagem e dropdowns customizados sem elementos brutos nativos.
 - **Bilingue (PT-BR & EN)**: Alternância instantânea de idioma com 1 clique diretamente no cabeçalho.
 - **Bandeja do Sistema (System Tray)**: Botão dedicado para minimizar para a área de notificação do Windows com suporte a restauração por duplo clique e menu de contexto.
 - **Monitoramento em Tempo Real**:
