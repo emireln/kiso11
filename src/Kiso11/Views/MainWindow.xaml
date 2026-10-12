@@ -373,6 +373,26 @@
                                                Foreground="{StaticResource SuccessBrush}" />
                                 </Border>
                             </StackPanel>
+
+                            <!-- Edition picker, read from the ISO -->
+                            <StackPanel Margin="0,14,0,0"
+                                        Visibility="{Binding IsIsoValid, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{Binding Loc.EditionLabel}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Margin="0,0,0,6" />
+                                <ComboBox ItemsSource="{Binding Editions}"
+                                          SelectedItem="{Binding SelectedEdition}"
+                                          DisplayMemberPath="Name"
+                                          Width="300"
+                                          HorizontalAlignment="Left" />
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding InspectionMessage}"
+                                       FontSize="12"
+                                       Foreground="{StaticResource WarningBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,10,0,0" />
                         </StackPanel>
 
                         <!-- Change ISO Button -->

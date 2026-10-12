@@ -35,6 +35,10 @@ public class MainViewModel : BaseViewModel
     private OutputMode _outputMode = OutputMode.IsoFile;
     private string _outputIsoPath = string.Empty;
     private UsbDriveItem? _selectedUsbDrive;
+    private WimEdition? _selectedEdition;
+    private CancellationTokenSource? _inspectCts;
+    private bool _isInspecting;
+    private string _inspectionError = string.Empty;
 
     private bool _isPresetRecommended = true;
     private bool _isCustomSettingsExpanded;
@@ -53,8 +57,8 @@ public class MainViewModel : BaseViewModel
     public MainViewModel()
     {
         _runner = new ProcessRunner();
-        _isoService = new IsoService(_runner);
         _dismService = new DismEngineService(_runner);
+        _isoService = new IsoService(_runner, _dismService);
         _usbService = new UsbBootService(_runner);
         _oscdimgService = new OscdimgService(_runner);
 
@@ -135,11 +139,42 @@ public class MainViewModel : BaseViewModel
     public bool IsStep3 => CurrentStep == 3;
     public bool IsStep4 => CurrentStep == 4;
 
-    public bool HasIsoSelected => IsIsoValid;
+    public bool HasIsoSelected => !string.IsNullOrEmpty(IsoPath);
+
+    public bool IsInspecting
+    {
+        get => _isInspecting;
+        private set
+        {
+            if (SetProperty(ref _isInspecting, value))
+            {
+                OnPropertyChanged(nameof(InspectionMessage));
+                OnPropertyChanged(nameof(CanGoNext));
+            }
+        }
+    }
+
+    public string InspectionMessage => IsInspecting ? Loc.ReadingEditions : _inspectionError;
+
+    public ObservableCollection<WimEdition> Editions { get; } = new();
+
+    public WimEdition? SelectedEdition
+    {
+        get => _selectedEdition;
+        set
+        {
+            if (SetProperty(ref _selectedEdition, value))
+            {
+                OnPropertyChanged(nameof(CanGoNext));
+                ((RelayCommand)StartProcessCommand).RaiseCanExecuteChanged();
+                ((RelayCommand)NextStepCommand).RaiseCanExecuteChanged();
+            }
+        }
+    }
 
     public bool CanGoNext => CurrentStep switch
     {
-        1 => IsIsoValid,
+        1 => IsIsoValid && !IsInspecting && SelectedEdition != null,
         2 => OutputMode == OutputMode.BootableUsb ? SelectedUsbDrive is { IsSupported: true } : !string.IsNullOrWhiteSpace(OutputIsoPath),
         3 => CanStartProcess(),
         _ => false
@@ -512,33 +547,102 @@ public class MainViewModel : BaseViewModel
 
     private void UpdateIsoDetails()
     {
+        _inspectCts?.Cancel();
+        Editions.Clear();
+        SelectedEdition = null;
+        IsIsoValid = false;
+        _inspectionError = string.Empty;
+        OnPropertyChanged(nameof(InspectionMessage));
+        OnPropertyChanged(nameof(HasIsoSelected));
+
         if (File.Exists(IsoPath))
         {
             var info = new FileInfo(IsoPath);
             IsoFileName = info.Name;
             double gb = info.Length / (1024.0 * 1024 * 1024);
             IsoSizeText = $"{gb:0.00} GB";
-            IsIsoValid = true;
 
             var dir = Path.GetDirectoryName(IsoPath) ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
             var baseName = Path.GetFileNameWithoutExtension(IsoPath);
             OutputIsoPath = Path.Combine(dir, $"{baseName}_Kiso11.iso");
+
+            _ = InspectIsoAsync(IsoPath);
         }
         else
         {
             IsoFileName = Loc.FileNotFound;
             IsoSizeText = "-";
-            IsIsoValid = false;
+            _inspectionError = Loc.FileNotFound;
+            OnPropertyChanged(nameof(InspectionMessage));
         }
 
         OnPropertyChanged(nameof(CanGoNext));
         ((RelayCommand)NextStepCommand).RaiseCanExecuteChanged();
     }
 
+    /// Reads the editions before the user can continue, so an invalid ISO is caught at step 1.
+    private async Task InspectIsoAsync(string path)
+    {
+        var cts = new CancellationTokenSource();
+        _inspectCts = cts;
+        IsInspecting = true;
+
+        try
+        {
+            var info = await _isoService.InspectAsync(path, cts.Token);
+            if (cts.IsCancellationRequested) return;
+
+            if (!info.IsWindowsInstaller)
+            {
+                _inspectionError = Loc.ErrNoInstallImage;
+            }
+            else
+            {
+                foreach (var edition in info.Editions)
+                {
+                    Editions.Add(edition);
+                }
+
+                SelectedEdition = Editions.FirstOrDefault(IsPreferredEdition) ?? Editions.FirstOrDefault();
+                IsIsoValid = SelectedEdition != null;
+
+                if (!IsIsoValid)
+                {
+                    _inspectionError = Loc.ErrNoEditions;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer ISO replaced this one.
+        }
+        catch (Exception ex)
+        {
+            _inspectionError = ex.Message;
+        }
+        finally
+        {
+            if (_inspectCts == cts)
+            {
+                IsInspecting = false;
+                OnPropertyChanged(nameof(InspectionMessage));
+                OnPropertyChanged(nameof(CanGoNext));
+                ((RelayCommand)NextStepCommand).RaiseCanExecuteChanged();
+                ((RelayCommand)StartProcessCommand).RaiseCanExecuteChanged();
+            }
+
+            cts.Dispose();
+        }
+    }
+
+    private static bool IsPreferredEdition(WimEdition edition) =>
+        edition.Name.Equals("Windows 11 Pro", StringComparison.OrdinalIgnoreCase) ||
+        edition.Name.Equals("Windows 10 Pro", StringComparison.OrdinalIgnoreCase);
+
     private bool CanStartProcess()
     {
         if (State == ProcessState.Running) return false;
-        if (!IsIsoValid || !File.Exists(IsoPath)) return false;
+        if (!IsIsoValid || IsInspecting || SelectedEdition == null || !File.Exists(IsoPath)) return false;
 
         if (OutputMode == OutputMode.BootableUsb)
         {
@@ -601,7 +705,8 @@ public class MainViewModel : BaseViewModel
             CurrentStageText = Loc.Stage1Extracting;
             ProgressPercentage = 5;
             StatusMessage = Loc.Stage1MountingIsoMsg;
-            await _isoService.ExtractIsoAsync(IsoPath, extractedDir, (p, msg) =>
+            Log($"[Kiso11] Edição: {SelectedEdition?.Name}");
+            var imageIndex = await _isoService.ExtractIsoAsync(IsoPath, extractedDir, SelectedEdition!.Index, (p, msg) =>
             {
                 ProgressPercentage = p;
                 StatusMessage = msg;
@@ -618,7 +723,7 @@ public class MainViewModel : BaseViewModel
             ProgressPercentage = 25;
             StatusMessage = Loc.Stage2MountingMsg;
             Log("[Kiso11] Montando install.wim...");
-            await _dismService.MountWimAsync(installWim, 1, mountDir, _cts.Token);
+            await _dismService.MountWimAsync(installWim, imageIndex, mountDir, _cts.Token);
 
             // 3. Remoção de Bloatware
             if (DebloatOptions.RemoveBloatwareApps)
@@ -707,7 +812,7 @@ public class MainViewModel : BaseViewModel
             ProgressPercentage = 75;
             StatusMessage = "Otimizando tamanho do arquivo de instalação...";
             Log("[Kiso11] Exportando imagem WIM limpa...");
-            await _dismService.OptimizeAndExportWimAsync(installWim, 1, DebloatOptions.CompressEsd, _cts.Token);
+            await _dismService.OptimizeAndExportWimAsync(installWim, imageIndex, DebloatOptions.CompressEsd, _cts.Token);
 
             // 7. Geração de Saída (ISO ou Pendrive)
             if (OutputMode == OutputMode.BootableUsb && SelectedUsbDrive != null)

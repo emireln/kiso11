@@ -233,4 +233,15 @@ public class LocalizationService : INotifyPropertyChanged
     public string LogHiveUnloadFailed => IsPtBr ? "Não foi possível descarregar o registro {0}. Reinicie antes de montar de novo." : "Could not unload the registry hive {0}. Restart before mounting again.";
     public string LogBootWimSkipped => IsPtBr ? "Bypass do boot.wim ignorado: {0}" : "Skipped the boot.wim bypass: {0}";
     public string LogDriversFailed => IsPtBr ? "A integração de drivers retornou o código {0}." : "Driver integration returned exit code {0}.";
+
+    // ISO and editions
+    public string EditionLabel => IsPtBr ? "Edição" : "Edition";
+    public string ReadingEditions => IsPtBr ? "Lendo edições da ISO…" : "Reading ISO editions…";
+    public string ErrNoInstallImage => IsPtBr ? "Esta ISO não contém install.wim nem install.esd. Escolha uma imagem do Windows." : "This ISO has no install.wim or install.esd. Choose a Windows image.";
+    public string ErrNoEditions => IsPtBr ? "Nenhuma edição encontrada nesta ISO." : "No editions were found in this ISO.";
+    public string ErrMountIso => IsPtBr ? "Não foi possível montar a ISO. Verifique se o arquivo não está corrompido." : "Could not mount the ISO. Check that the file is not corrupted.";
+    public string ErrEsdConvert => IsPtBr ? "Falha ao converter install.esd em install.wim." : "Could not convert install.esd to install.wim.";
+    public string MsgMountingIso => IsPtBr ? "Montando a ISO…" : "Mounting ISO…";
+    public string MsgCopyingIso => IsPtBr ? "Copiando arquivos da ISO…" : "Copying ISO files…";
+    public string MsgConvertingEsd => IsPtBr ? "Convertendo install.esd em install.wim…" : "Converting install.esd to install.wim…";
 }
