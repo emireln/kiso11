@@ -11,49 +11,47 @@ using System.Windows;
 using System.Windows.Threading;
 using Kiso11.Models;
 using Kiso11.Services;
-using Microsoft.Win32;
 
 namespace Kiso11.ViewModels;
 
 public class MainViewModel : BaseViewModel
 {
+    private const long LogBufferLimit = 200_000;
+
     private readonly ProcessRunner _runner;
     private readonly IsoService _isoService;
     private readonly DismEngineService _dismService;
     private readonly UsbBootService _usbService;
     private readonly OscdimgService _oscdimgService;
 
-    private CancellationTokenSource? _cts;
-    private Task? _runTask;
     private readonly DispatcherTimer _timer;
     private readonly Stopwatch _stopwatch = new();
+    private readonly StringBuilder _logBuffer = new();
+
+    private CancellationTokenSource? _cts;
+    private CancellationTokenSource? _inspectCts;
+    private Task? _runTask;
 
     private string _isoPath = string.Empty;
-    private string _isoFileName = "Nenhuma ISO selecionada";
+    private string _isoFileName = string.Empty;
     private string _isoSizeText = "-";
     private bool _isIsoValid;
+    private bool _isInspecting;
+    private string _inspectionError = string.Empty;
+    private WimEdition? _selectedEdition;
 
     private OutputMode _outputMode = OutputMode.IsoFile;
     private string _outputIsoPath = string.Empty;
     private UsbDriveItem? _selectedUsbDrive;
-    private WimEdition? _selectedEdition;
-    private CancellationTokenSource? _inspectCts;
-    private bool _isInspecting;
-    private string _inspectionError = string.Empty;
 
-    private bool _isPresetRecommended = true;
-    private bool _isCustomSettingsExpanded;
+    private int _currentStep = 1;
     private ProcessState _state = ProcessState.Idle;
-
     private int _progressPercentage;
-    private string _statusMessage = "Pronto para iniciar.";
-    private string _currentStageText = "Aguardando seleção";
+    private string _statusMessage = string.Empty;
+    private string _currentStageText = string.Empty;
     private string _elapsedTimeFormatted = "00:00";
     private string _estimatedRemainingFormatted = "--:--";
-
-    private readonly StringBuilder _logBuffer = new();
     private string _logText = string.Empty;
-    private bool _isLogExpanded = true;
 
     public MainViewModel()
     {
@@ -76,13 +74,11 @@ public class MainViewModel : BaseViewModel
         BrowseOutputIsoCommand = new RelayCommand(BrowseOutputIso);
         RefreshUsbDrivesCommand = new RelayCommand(RefreshUsbDrives);
         SelectPresetRecommendedCommand = new RelayCommand(SelectPresetRecommended);
-        StartProcessCommand = new RelayCommand(() => _runTask = StartProcessAsync(), () => CanStartProcess());
+        StartProcessCommand = new RelayCommand(() => _runTask = StartProcessAsync(), CanStartProcess);
         CancelProcessCommand = new RelayCommand(CancelProcess, () => IsProcessing);
         CopyLogCommand = new RelayCommand(CopyLog);
         ClearLogCommand = new RelayCommand(ClearLog);
         RestartAsAdminCommand = new RelayCommand(RestartAsAdmin);
-        SetLanguagePtBrCommand = new RelayCommand(() => SetLanguage(AppLanguage.PtBr));
-        SetLanguageEnCommand = new RelayCommand(() => SetLanguage(AppLanguage.En));
         MinimizeToTrayCommand = new RelayCommand(() => RequestMinimizeToTray?.Invoke());
 
         NextStepCommand = new RelayCommand(NextStep, () => CanGoNext);
@@ -101,22 +97,20 @@ public class MainViewModel : BaseViewModel
         var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
         OutputIsoPath = Path.Combine(desktop, "Windows11_Kiso11_Debloated.iso");
         _isoFileName = Loc.NoIsoSelected;
-        _statusMessage = Loc.StateIdle;
+        _statusMessage = Loc.ReadyToStart;
+        _currentStageText = Loc.WaitingSelection;
     }
 
     #region Properties
 
     public LocalizationService Loc => LocalizationService.Instance;
-    public RelayCommand SetLanguagePtBrCommand { get; }
-    public RelayCommand SetLanguageEnCommand { get; }
-    public RelayCommand MinimizeToTrayCommand { get; }
 
+    public RelayCommand MinimizeToTrayCommand { get; }
     public RelayCommand NextStepCommand { get; }
     public RelayCommand PreviousStepCommand { get; }
     public RelayCommand StartNewDebloatCommand { get; }
     public RelayCommand GoToStepCommand { get; }
 
-    private int _currentStep = 1;
     public int CurrentStep
     {
         get => _currentStep;
@@ -144,37 +138,6 @@ public class MainViewModel : BaseViewModel
 
     public bool HasIsoSelected => !string.IsNullOrEmpty(IsoPath);
 
-    public bool IsInspecting
-    {
-        get => _isInspecting;
-        private set
-        {
-            if (SetProperty(ref _isInspecting, value))
-            {
-                RaiseInspection();
-                OnPropertyChanged(nameof(CanGoNext));
-            }
-        }
-    }
-
-    public string InspectionMessage => IsInspecting ? Loc.ReadingEditions : _inspectionError;
-
-    public ObservableCollection<WimEdition> Editions { get; } = new();
-
-    public WimEdition? SelectedEdition
-    {
-        get => _selectedEdition;
-        set
-        {
-            if (SetProperty(ref _selectedEdition, value))
-            {
-                OnPropertyChanged(nameof(CanGoNext));
-                ((RelayCommand)StartProcessCommand).RaiseCanExecuteChanged();
-                ((RelayCommand)NextStepCommand).RaiseCanExecuteChanged();
-            }
-        }
-    }
-
     public bool CanGoNext => CurrentStep switch
     {
         1 => IsIsoValid && !IsInspecting && SelectedEdition != null,
@@ -191,40 +154,6 @@ public class MainViewModel : BaseViewModel
     public bool ShowNewRunButton => CurrentStep == 4 && !IsProcessing;
     public bool HasUsbDrives => UsbDrives.Count > 0;
     public bool IsInspectionError => !IsInspecting && !string.IsNullOrEmpty(_inspectionError);
-
-    private void NotifyFooterButtons()
-    {
-        OnPropertyChanged(nameof(ShowNextButton));
-        OnPropertyChanged(nameof(ShowStartButton));
-        OnPropertyChanged(nameof(ShowCancelButton));
-        OnPropertyChanged(nameof(ShowNewRunButton));
-    }
-
-    private void RaiseInspection()
-    {
-        OnPropertyChanged("InspectionMessage");
-        OnPropertyChanged(nameof(IsInspectionError));
-    }
-
-    /// Fills the view model with fixed values for the render preview. It starts no processes.
-    internal void ApplyPreview(string isoPath, string fileName, string sizeText, IEnumerable<WimEdition> editions)
-    {
-        _isoPath = isoPath;
-        OnPropertyChanged(nameof(IsoPath));
-        IsoFileName = fileName;
-        IsoSizeText = sizeText;
-
-        Editions.Clear();
-        foreach (var edition in editions)
-        {
-            Editions.Add(edition);
-        }
-
-        SelectedEdition = Editions.FirstOrDefault(IsPreferredEdition) ?? Editions.FirstOrDefault();
-        IsIsoValid = SelectedEdition != null;
-        OnPropertyChanged(nameof(HasIsoSelected));
-        OnPropertyChanged(nameof(CanGoNext));
-    }
 
     public void NextStep()
     {
@@ -275,6 +204,7 @@ public class MainViewModel : BaseViewModel
     public RelayCommand RestartAsAdminCommand { get; }
 
     public ObservableCollection<UsbDriveItem> UsbDrives { get; }
+    public ObservableCollection<WimEdition> Editions { get; } = new();
     public DebloatOptions DebloatOptions { get; }
 
     public bool IsPtBrSelected
@@ -295,10 +225,6 @@ public class MainViewModel : BaseViewModel
         OnPropertyChanged(nameof(Loc));
         OnPropertyChanged(nameof(IsPtBrSelected));
         OnPropertyChanged(nameof(IsEnSelected));
-        OnPropertyChanged(nameof(IsoFileName));
-        OnPropertyChanged(nameof(StatusMessage));
-        OnPropertyChanged(nameof(StateText));
-        OnPropertyChanged(nameof(CurrentStageText));
 
         if (string.IsNullOrEmpty(IsoPath))
         {
@@ -310,6 +236,9 @@ public class MainViewModel : BaseViewModel
             StatusMessage = Loc.ReadyToStart;
             CurrentStageText = Loc.WaitingSelection;
         }
+
+        OnPropertyChanged(nameof(StateText));
+        RaiseInspection();
     }
 
     public string StateText => State switch
@@ -332,7 +261,6 @@ public class MainViewModel : BaseViewModel
             if (SetProperty(ref _isoPath, value))
             {
                 UpdateIsoDetails();
-                ((RelayCommand)StartProcessCommand).RaiseCanExecuteChanged();
             }
         }
     }
@@ -352,11 +280,34 @@ public class MainViewModel : BaseViewModel
     public bool IsIsoValid
     {
         get => _isIsoValid;
+        set => SetProperty(ref _isIsoValid, value);
+    }
+
+    public bool IsInspecting
+    {
+        get => _isInspecting;
+        private set
+        {
+            if (SetProperty(ref _isInspecting, value))
+            {
+                RaiseInspection();
+                OnPropertyChanged(nameof(CanGoNext));
+            }
+        }
+    }
+
+    public string InspectionMessage => IsInspecting ? Loc.ReadingEditions : _inspectionError;
+
+    public WimEdition? SelectedEdition
+    {
+        get => _selectedEdition;
         set
         {
-            if (SetProperty(ref _isIsoValid, value))
+            if (SetProperty(ref _selectedEdition, value))
             {
-                OnPropertyChanged(nameof(HasIsoSelected));
+                OnPropertyChanged(nameof(CanGoNext));
+                ((RelayCommand)StartProcessCommand).RaiseCanExecuteChanged();
+                ((RelayCommand)NextStepCommand).RaiseCanExecuteChanged();
             }
         }
     }
@@ -417,25 +368,6 @@ public class MainViewModel : BaseViewModel
         }
     }
 
-    public bool IsPresetRecommended
-    {
-        get => _isPresetRecommended;
-        set
-        {
-            if (SetProperty(ref _isPresetRecommended, value) && value)
-            {
-                DebloatOptions.ApplyRecommended();
-                NotifyDebloatOptionChanges();
-            }
-        }
-    }
-
-    public bool IsCustomSettingsExpanded
-    {
-        get => _isCustomSettingsExpanded;
-        set => SetProperty(ref _isCustomSettingsExpanded, value);
-    }
-
     public ProcessState State
     {
         get => _state;
@@ -445,6 +377,7 @@ public class MainViewModel : BaseViewModel
             {
                 OnPropertyChanged(nameof(IsProcessing));
                 OnPropertyChanged(nameof(CanEditConfig));
+                OnPropertyChanged(nameof(StateText));
                 NotifyFooterButtons();
                 ((RelayCommand)StartProcessCommand).RaiseCanExecuteChanged();
                 ((RelayCommand)CancelProcessCommand).RaiseCanExecuteChanged();
@@ -496,6 +429,7 @@ public class MainViewModel : BaseViewModel
             }
         }
     }
+
     public string RemainingTimeFormatted => EstimatedRemainingFormatted;
 
     public string LogText
@@ -509,13 +443,8 @@ public class MainViewModel : BaseViewModel
             }
         }
     }
-    public string Logs => LogText;
 
-    public bool IsLogExpanded
-    {
-        get => _isLogExpanded;
-        set => SetProperty(ref _isLogExpanded, value);
-    }
+    public string Logs => LogText;
 
     #endregion
 
@@ -532,12 +461,48 @@ public class MainViewModel : BaseViewModel
 
     #endregion
 
+    /// Fills the view model with fixed values for the render preview. It starts no processes.
+    internal void ApplyPreview(string isoPath, string fileName, string sizeText, IEnumerable<WimEdition> editions)
+    {
+        _isoPath = isoPath;
+        OnPropertyChanged(nameof(IsoPath));
+        IsoFileName = fileName;
+        IsoSizeText = sizeText;
+
+        Editions.Clear();
+        foreach (var edition in editions)
+        {
+            Editions.Add(edition);
+        }
+
+        SelectedEdition = Editions.FirstOrDefault(IsPreferredEdition) ?? Editions.FirstOrDefault();
+        IsIsoValid = SelectedEdition != null;
+        OnPropertyChanged(nameof(HasIsoSelected));
+        OnPropertyChanged(nameof(CanGoNext));
+    }
+
+    private void NotifyFooterButtons()
+    {
+        OnPropertyChanged(nameof(ShowNextButton));
+        OnPropertyChanged(nameof(ShowStartButton));
+        OnPropertyChanged(nameof(ShowCancelButton));
+        OnPropertyChanged(nameof(ShowNewRunButton));
+    }
+
+    private void RaiseInspection()
+    {
+        OnPropertyChanged("InspectionMessage");
+        OnPropertyChanged(nameof(IsInspectionError));
+    }
+
     private void BrowseIso()
     {
-        var dialog = new OpenFileDialog
+        if (IsProcessing) return;
+
+        var dialog = new Microsoft.Win32.OpenFileDialog
         {
-            Title = "Selecione a imagem ISO do Windows",
-            Filter = "Imagens ISO (*.iso)|*.iso|Todos os arquivos (*.*)|*.*"
+            Title = Loc.BrowseIso,
+            Filter = "ISO (*.iso)|*.iso|*.*|*.*"
         };
 
         if (dialog.ShowDialog() == true)
@@ -548,10 +513,12 @@ public class MainViewModel : BaseViewModel
 
     private void BrowseOutputIso()
     {
-        var dialog = new SaveFileDialog
+        if (IsProcessing) return;
+
+        var dialog = new Microsoft.Win32.SaveFileDialog
         {
-            Title = "Salvar ISO Debloated Como",
-            Filter = "Imagem ISO (*.iso)|*.iso",
+            Title = Loc.SaveTo,
+            Filter = "ISO (*.iso)|*.iso",
             FileName = "Windows11_Kiso11_Debloated.iso"
         };
 
@@ -566,8 +533,7 @@ public class MainViewModel : BaseViewModel
         var currentSelected = SelectedUsbDrive?.DriveLetter;
         UsbDrives.Clear();
 
-        var drives = _usbService.GetAvailableUsbDrives();
-        foreach (var d in drives)
+        foreach (var d in _usbService.GetAvailableUsbDrives())
         {
             UsbDrives.Add(d);
         }
@@ -587,10 +553,7 @@ public class MainViewModel : BaseViewModel
 
     private void SelectPresetRecommended()
     {
-        _isPresetRecommended = true;
-        OnPropertyChanged(nameof(IsPresetRecommended));
         DebloatOptions.ApplyRecommended();
-        NotifyDebloatOptionChanges();
     }
 
     private void UpdateIsoDetails()
@@ -706,138 +669,135 @@ public class MainViewModel : BaseViewModel
 
         if (!IsAdministrator)
         {
-            var elevate = MessageBox.Show(
-                Loc.AdminRequiredPrompt,
-                Loc.AdminRequiredTitle,
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-
-            if (elevate == MessageBoxResult.Yes)
+            if (Dialogs.Confirm(Loc.AdminRequiredTitle, Loc.AdminRequiredPrompt, Loc.Restart, Loc.Cancel))
             {
                 RestartAsAdmin();
             }
             return;
         }
 
-        if (OutputMode == OutputMode.BootableUsb && SelectedUsbDrive != null)
+        var usbDrive = OutputMode == OutputMode.BootableUsb ? SelectedUsbDrive : null;
+        if (usbDrive != null)
         {
-            var confirm = MessageBox.Show(
-                Loc.UsbFormatConfirm(SelectedUsbDrive.DriveLetter, SelectedUsbDrive.VolumeLabel, SelectedUsbDrive.TotalSizeFormatted),
+            var confirmed = Dialogs.Confirm(
                 Loc.UsbFormatConfirmTitle,
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
+                Loc.UsbFormatConfirm(usbDrive.DriveLetter, usbDrive.VolumeLabel, usbDrive.TotalSizeFormatted),
+                Loc.FormatAndWrite,
+                Loc.Cancel,
+                danger: true);
 
-            if (confirm != MessageBoxResult.Yes) return;
+            if (!confirmed) return;
         }
+
+        var edition = SelectedEdition!;
+        var isoOutput = OutputIsoPath;
+        var isoSource = IsoPath;
 
         State = ProcessState.Running;
         CurrentStep = 4;
         _cts = new CancellationTokenSource();
+        var token = _cts.Token;
+
         ClearLog();
+        ProgressPercentage = 0;
         ElapsedTimeFormatted = "00:00";
         EstimatedRemainingFormatted = "--:--";
+        CurrentStageText = Loc.Stage1Preparing;
+        StatusMessage = Loc.Stage1Preparing;
         _stopwatch.Restart();
         _timer.Start();
-
-        ProgressPercentage = 0;
-        StatusMessage = Loc.ReadyToStart;
-        CurrentStageText = Loc.Stage1Preparing;
 
         var workDir = Path.Combine(Path.GetTempPath(), $"Kiso11_Build_{Guid.NewGuid():N}");
         var mountDir = Path.Combine(workDir, "mount");
         var extractedDir = Path.Combine(workDir, "extracted");
+        var bootMountDir = Path.Combine(workDir, "boot_mount");
+
+        var result = ProcessState.Completed;
+        string? errorMessage = null;
 
         try
         {
-            Log($"[Kiso11] Iniciando otimização da ISO: {IsoPath}");
-            Log($"[Kiso11] Modo de saída: {(OutputMode == OutputMode.BootableUsb ? "Pendrive Bootável (" + SelectedUsbDrive?.DriveLetter + ")" : "Arquivo ISO (" + OutputIsoPath + ")")}");
+            Log(string.Format(Loc.LogStarting, isoSource));
+            Log(string.Format(Loc.LogEdition, edition.Name));
+            Log(usbDrive != null
+                ? string.Format(Loc.LogOutputUsb, usbDrive.DriveLetter)
+                : string.Format(Loc.LogOutputIso, isoOutput));
 
-            // 1. Extração da ISO
+            // 1. Extract the ISO
             CurrentStageText = Loc.Stage1Extracting;
             ProgressPercentage = 5;
             StatusMessage = Loc.Stage1MountingIsoMsg;
-            Log($"[Kiso11] Edição: {SelectedEdition?.Name}");
-            var imageIndex = await _isoService.ExtractIsoAsync(IsoPath, extractedDir, SelectedEdition!.Index, (p, msg) =>
+            var imageIndex = await _isoService.ExtractIsoAsync(isoSource, extractedDir, edition.Index, (p, msg) =>
             {
                 ProgressPercentage = p;
                 StatusMessage = msg;
-            }, _cts.Token);
+            }, token);
 
             var installWim = Path.Combine(extractedDir, "sources", "install.wim");
             if (!File.Exists(installWim))
             {
-                throw new FileNotFoundException("install.wim não foi encontrado após a extração.");
+                throw new FileNotFoundException(Loc.ErrInstallWimMissing);
             }
 
-            // 2. Montagem do WIM
+            // 2. Mount the image
             CurrentStageText = Loc.Stage2Mounting;
             ProgressPercentage = 25;
             StatusMessage = Loc.Stage2MountingMsg;
-            Log("[Kiso11] Montando install.wim...");
-            await _dismService.MountWimAsync(installWim, imageIndex, mountDir, _cts.Token);
+            Log(Loc.LogMounting);
+            await _dismService.MountWimAsync(installWim, imageIndex, mountDir, token);
 
-            // 3. Remoção de Bloatware
+            // 3. Apps and AI
             if (DebloatOptions.RemoveBloatwareApps)
             {
                 CurrentStageText = Loc.Stage3Debloating;
-                Log("[Kiso11] Removendo pacotes AppX inúteis...");
+                Log(Loc.LogRemovingApps);
                 await _dismService.RemoveBloatwarePackagesAsync(mountDir, (p, msg) =>
                 {
                     ProgressPercentage = 25 + (int)(p * 0.15);
                     StatusMessage = msg;
-                }, _cts.Token);
+                }, token);
             }
 
-            // 4. Remoção de IA e Copilot
             if (DebloatOptions.RemoveAiAndCopilot)
             {
                 CurrentStageText = Loc.Stage3AiRemoval;
-                Log("[Kiso11] Removendo Copilot, Recall e pacotes de IA...");
-                await _dismService.RemoveAiComponentsAsync(mountDir, (p, msg) =>
-                {
-                    StatusMessage = msg;
-                }, _cts.Token);
+                Log(Loc.LogRemovingAi);
+                await _dismService.RemoveAiComponentsAsync(mountDir, (_, msg) => StatusMessage = msg, token);
             }
 
-            // Remoção de OneDrive e Edge se selecionados
             if (DebloatOptions.RemoveOneDrive)
             {
-                Log("[Kiso11] Removendo arquivos de instalação do OneDrive...");
-                await _dismService.RemoveOneDriveFilesAsync(mountDir, _cts.Token);
+                Log(Loc.LogRemovingOneDrive);
+                await _dismService.RemoveOneDriveFilesAsync(mountDir, token);
             }
 
             if (DebloatOptions.RemoveEdge)
             {
-                Log("[Kiso11] Removendo Microsoft Edge...");
-                await _dismService.RemoveEdgeAsync(mountDir, _cts.Token);
+                Log(Loc.LogRemovingEdge);
+                await _dismService.RemoveEdgeAsync(mountDir, token);
             }
 
-            // 5. Otimizações de Registro Offline
+            // 4. Registry tweaks on the offline hives
             CurrentStageText = Loc.Stage3Registry;
             ProgressPercentage = 50;
             StatusMessage = Loc.Stage3RegistryMsg;
-            Log("[Kiso11] Aplicando otimizações no registro offline...");
-            await _dismService.ApplyOfflineRegistryTweaksAsync(mountDir, DebloatOptions, _cts.Token);
+            Log(Loc.LogRegistry);
+            await _dismService.ApplyOfflineRegistryTweaksAsync(mountDir, DebloatOptions, token);
 
-            // Injetar autounattend.xml
-            Log("[Kiso11] Injetando autounattend.xml para bypass de conta online no OOBE...");
+            // 5. Unattended answer file and setup bypasses
+            Log(Loc.LogUnattend);
             _isoService.InjectAutounattendXml(extractedDir);
 
-            // Injetar bypasses de hardware no boot.wim e appraiserres.dll se habilitado
             if (DebloatOptions.BypassTpmAndHardware)
             {
                 CurrentStageText = Loc.Stage5Bypasses;
                 StatusMessage = Loc.Stage5BypassesMsg;
-                Log("[Kiso11] Configurando bypasses de TPM 2.0 / Secure Boot / RAM no boot.wim...");
+                Log(Loc.LogBypass);
                 _isoService.PatchAppraiserResDll(extractedDir);
-
-                var bootWim = Path.Combine(extractedDir, "sources", "boot.wim");
-                var bootMount = Path.Combine(workDir, "boot_mount");
-                await _dismService.ApplyBootWimBypassesAsync(bootWim, bootMount, _cts.Token);
+                await _dismService.ApplyBootWimBypassesAsync(Path.Combine(extractedDir, "sources", "boot.wim"), bootMountDir, token);
             }
 
-            // Drivers Intel VMD/RST
-            if (DebloatOptions.IntegrateIntelDrivers)
+            if (DebloatOptions.IntegrateIntelRstDrivers)
             {
                 var driversDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Drivers");
                 if (!Directory.Exists(driversDir))
@@ -847,113 +807,133 @@ public class MainViewModel : BaseViewModel
 
                 if (Directory.Exists(driversDir))
                 {
-                    Log($"[Kiso11] Integrando drivers Intel VMD/RST de {driversDir}...");
-                    await _dismService.IntegrateDriversAsync(mountDir, driversDir, _cts.Token);
+                    Log(string.Format(Loc.LogDrivers, driversDir));
+                    await _dismService.IntegrateDriversAsync(mountDir, driversDir, token);
+                }
+                else
+                {
+                    Log(string.Format(Loc.LogDriversMissing, driversDir));
                 }
             }
 
-            // 6. Limpeza de componentes e desmontagem
+            // 6. Save and unmount
             CurrentStageText = Loc.Stage4Unmounting;
             ProgressPercentage = 65;
             StatusMessage = Loc.Stage4UnmountingMsg;
-            Log("[Kiso11] Desmontando e salvando imagem WIM...");
-            await _dismService.UnmountWimAsync(mountDir, commit: true, _cts.Token);
+            Log(Loc.LogUnmounting);
+            await _dismService.UnmountWimAsync(mountDir, commit: true, token);
 
-            // Otimização e compressão do WIM
+            // 7. Export only the chosen edition
             ProgressPercentage = 75;
-            StatusMessage = "Otimizando tamanho do arquivo de instalação...";
-            Log("[Kiso11] Exportando imagem WIM limpa...");
-            await _dismService.OptimizeAndExportWimAsync(installWim, imageIndex, DebloatOptions.CompressEsd, _cts.Token);
+            StatusMessage = Loc.MsgExporting;
+            Log(Loc.LogExporting);
+            await _dismService.OptimizeAndExportWimAsync(installWim, imageIndex, DebloatOptions.CompressEsd, token);
 
-            // 7. Geração de Saída (ISO ou Pendrive)
-            if (OutputMode == OutputMode.BootableUsb && SelectedUsbDrive != null)
+            // 8. Write the output
+            if (usbDrive != null)
             {
                 CurrentStageText = Loc.Stage6WritingUsb;
-                Log($"[Kiso11] Criando pendrive bootável em {SelectedUsbDrive.DriveLetter}...");
-                await _usbService.CreateBootableUsbAsync(extractedDir, SelectedUsbDrive.DriveLetter, (p, msg) =>
+                Log(string.Format(Loc.LogWritingUsb, usbDrive.DriveLetter));
+                await _usbService.CreateBootableUsbAsync(extractedDir, usbDrive.DriveLetter, (p, msg) =>
                 {
                     ProgressPercentage = 80 + (int)(p * 0.20);
                     StatusMessage = msg;
-                }, _cts.Token);
-
-                ProgressPercentage = 100;
-                StatusMessage = Loc.ProcessFinishedSuccess;
-                CurrentStageText = Loc.StateCompleted;
-                Log($"[Kiso11] SUCESSO! Pendrive bootável pronto na unidade [{SelectedUsbDrive.DriveLetter}].");
-
-                MessageBox.Show(
-                    Loc.SuccessUsbCreated(SelectedUsbDrive.DriveLetter),
-                    Loc.SuccessTitle,
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                }, token);
             }
             else
             {
                 CurrentStageText = Loc.Stage6FinalizingIso;
                 ProgressPercentage = 85;
-                StatusMessage = "Compilando ISO bootável UEFI com Oscdimg...";
-                Log($"[Kiso11] Gerando arquivo ISO em: {OutputIsoPath}...");
+                StatusMessage = Loc.MsgBuildingIso;
+                Log(string.Format(Loc.LogBuildingIso, isoOutput));
 
-                var isoBuilt = await _oscdimgService.BuildIsoAsync(extractedDir, OutputIsoPath, "KISO11", _cts.Token);
+                var isoBuilt = await _oscdimgService.BuildIsoAsync(extractedDir, isoOutput, "KISO11", token);
                 if (!isoBuilt)
                 {
-                    throw new InvalidOperationException("Falha ao gerar o arquivo ISO com Oscdimg.");
+                    throw new InvalidOperationException(Loc.ErrOscdimgBuild);
                 }
-
-                ProgressPercentage = 100;
-                StatusMessage = Loc.ProcessFinishedSuccess;
-                CurrentStageText = Loc.StateCompleted;
-                Log($"[Kiso11] SUCESSO! Arquivo salvo em: {OutputIsoPath}");
-
-                MessageBox.Show(
-                    Loc.SuccessIsoCreated(OutputIsoPath),
-                    Loc.SuccessTitle,
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
             }
 
-            State = ProcessState.Completed;
-            TrayCompleted?.Invoke();
+            ProgressPercentage = 100;
         }
         catch (OperationCanceledException)
         {
-            State = ProcessState.Cancelled;
-            StatusMessage = Loc.LogCancelledByUser;
-            CurrentStageText = Loc.StateCancelled;
-            Log(Loc.LogCancelledByUser);
+            result = ProcessState.Cancelled;
         }
         catch (Exception ex)
         {
-            State = ProcessState.Failed;
-            StatusMessage = string.Format(Loc.ErrGeneric, ex.Message);
-            CurrentStageText = Loc.StateFailed;
-            Log($"[Kiso11 ERRO] {ex.Message}\n{ex.StackTrace}");
-
-            MessageBox.Show(
-                $"Ocorreu um erro durante o processo:\n\n{ex.Message}\n\nConsulte o console de logs para detalhes.",
-                "Erro no Kiso11",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+            result = ProcessState.Failed;
+            errorMessage = ex.Message;
+            Log(string.Format(Loc.LogError, ex.Message));
         }
         finally
         {
             _timer.Stop();
             _stopwatch.Stop();
 
-            // Unmount anything left behind and remove the work folder, then restore the final status.
-            var finalStage = CurrentStageText;
-            var finalStatus = StatusMessage;
+            // Unmount anything left behind and remove the work folder.
             CurrentStageText = Loc.StageCleanup;
-
+            StatusMessage = Loc.StageCleanup;
             await _dismService.CleanupMountDirAsync(mountDir);
             try
             {
                 if (Directory.Exists(workDir)) Directory.Delete(workDir, recursive: true);
             }
             catch { }
+        }
 
-            CurrentStageText = finalStage;
-            StatusMessage = finalStatus;
+        State = result;
+
+        switch (result)
+        {
+            case ProcessState.Completed:
+                CurrentStageText = Loc.StateCompleted;
+                StatusMessage = Loc.ProcessFinishedSuccess;
+                if (usbDrive != null)
+                {
+                    Log(string.Format(Loc.LogUsbDone, usbDrive.DriveLetter));
+                }
+                else
+                {
+                    Log(string.Format(Loc.LogIsoDone, isoOutput));
+                }
+
+                TrayCompleted?.Invoke();
+                if (usbDrive != null)
+                {
+                    Dialogs.Info(Loc.SuccessTitle, Loc.SuccessUsbCreated(usbDrive.DriveLetter), Loc.Ok);
+                }
+                else
+                {
+                    ShowIsoCreatedDialog(isoOutput);
+                }
+                break;
+
+            case ProcessState.Cancelled:
+                CurrentStageText = Loc.StateCancelled;
+                StatusMessage = Loc.LogCancelledByUser;
+                Log(Loc.LogCancelledByUser);
+                break;
+
+            default:
+                CurrentStageText = Loc.StateFailed;
+                StatusMessage = string.Format(Loc.ErrGeneric, errorMessage);
+                Dialogs.Info(Loc.ErrorTitle, Loc.ErrorBody(errorMessage ?? string.Empty), Loc.Ok);
+                break;
+        }
+    }
+
+    private void ShowIsoCreatedDialog(string path)
+    {
+        var choice = Dialogs.Show(
+            Loc.SuccessTitle,
+            Loc.SuccessIsoCreated(path),
+            new DialogButton(Loc.ShowInExplorer, DialogButtonKind.Secondary),
+            new DialogButton(Loc.Close, DialogButtonKind.Primary));
+
+        if (choice == 0)
+        {
+            Process.Start("explorer.exe", $"/select,\"{path}\"");
         }
     }
 
@@ -988,7 +968,7 @@ public class MainViewModel : BaseViewModel
         var elapsed = _stopwatch.Elapsed;
         ElapsedTimeFormatted = FormatDuration(elapsed);
 
-        // Estimate remaining time based on progress
+        // Estimate the remaining time from progress so far.
         if (ProgressPercentage > 5 && ProgressPercentage < 100)
         {
             var totalSeconds = elapsed.TotalSeconds;
@@ -1021,8 +1001,8 @@ public class MainViewModel : BaseViewModel
         {
             _logBuffer.AppendLine(formatted);
 
-            // Limit buffer size to ~2000 lines
-            if (_logBuffer.Length > 200000)
+            // Keep the newest half once the buffer passes the limit.
+            if (_logBuffer.Length > LogBufferLimit)
             {
                 var content = _logBuffer.ToString();
                 var half = content.Length / 2;
@@ -1048,11 +1028,6 @@ public class MainViewModel : BaseViewModel
     {
         _logBuffer.Clear();
         LogText = string.Empty;
-    }
-
-    private void NotifyDebloatOptionChanges()
-    {
-        OnPropertyChanged(nameof(DebloatOptions));
     }
 
     public void RestartAsAdmin()

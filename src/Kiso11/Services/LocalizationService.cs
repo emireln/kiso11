@@ -229,6 +229,34 @@ public class LocalizationService : INotifyPropertyChanged
     // Errors and messages from services
     public string ErrGeneric => IsPtBr ? "Erro: {0}" : "Error: {0}";
     public string ErrElevate => IsPtBr ? "Não foi possível reiniciar como administrador: {0}" : "Could not restart as administrator: {0}";
+    public string ErrOscdimgBuild => IsPtBr ? "Não foi possível gerar a ISO com o oscdimg." : "Could not build the ISO with oscdimg.";
+    public string ErrOscdimgExtract => IsPtBr ? "expand.exe falhou ao extrair o oscdimg (código {0})." : "expand.exe failed to extract oscdimg (exit code {0}).";
+    public string ErrOscdimgMissing => IsPtBr ? "O oscdimg não foi encontrado no pacote do ADK." : "oscdimg was not found in the ADK package.";
+
+    // Run log
+    public string LogStarting => IsPtBr ? "Iniciando: {0}" : "Starting: {0}";
+    public string LogEdition => IsPtBr ? "Edição: {0}" : "Edition: {0}";
+    public string LogOutputIso => IsPtBr ? "Saída: arquivo ISO em {0}" : "Output: ISO file at {0}";
+    public string LogOutputUsb => IsPtBr ? "Saída: pendrive na unidade {0}" : "Output: USB drive on {0}";
+    public string LogMounting => IsPtBr ? "Montando install.wim…" : "Mounting install.wim…";
+    public string LogRemovingApps => IsPtBr ? "Removendo apps e bloatware…" : "Removing apps and bloatware…";
+    public string LogRemovingAi => IsPtBr ? "Removendo Copilot, Recall e componentes de IA…" : "Removing Copilot, Recall and AI components…";
+    public string LogRemovingOneDrive => IsPtBr ? "Removendo os arquivos do OneDrive…" : "Removing OneDrive files…";
+    public string LogRemovingEdge => IsPtBr ? "Removendo o Microsoft Edge…" : "Removing Microsoft Edge…";
+    public string LogRegistry => IsPtBr ? "Aplicando ajustes de registro offline…" : "Applying offline registry changes…";
+    public string LogUnattend => IsPtBr ? "Injetando autounattend.xml (OOBE sem conta Microsoft)…" : "Injecting autounattend.xml (OOBE without a Microsoft account)…";
+    public string LogBypass => IsPtBr ? "Aplicando bypass de TPM, Secure Boot, RAM e CPU no boot.wim…" : "Applying TPM, Secure Boot, RAM and CPU bypass to boot.wim…";
+    public string LogDrivers => IsPtBr ? "Integrando drivers de {0}…" : "Adding drivers from {0}…";
+    public string LogDriversMissing => IsPtBr ? "Pasta de drivers não encontrada: {0}" : "Driver folder not found: {0}";
+    public string LogUnmounting => IsPtBr ? "Salvando e desmontando install.wim…" : "Saving and unmounting install.wim…";
+    public string LogExporting => IsPtBr ? "Otimizando o install.wim…" : "Optimizing install.wim…";
+    public string LogWritingUsb => IsPtBr ? "Gravando o pendrive na unidade {0}…" : "Writing the USB drive on {0}…";
+    public string LogUsbDone => IsPtBr ? "Pendrive bootável pronto na unidade {0}." : "Bootable USB ready on drive {0}.";
+    public string LogBuildingIso => IsPtBr ? "Gerando a ISO em {0}…" : "Building the ISO at {0}…";
+    public string LogIsoDone => IsPtBr ? "ISO criada: {0}" : "ISO created: {0}";
+    public string LogError => IsPtBr ? "ERRO: {0}" : "ERROR: {0}";
+    public string MsgExporting => IsPtBr ? "Reduzindo o tamanho do install.wim…" : "Reducing the size of install.wim…";
+    public string MsgBuildingIso => IsPtBr ? "Gerando a ISO bootável com o oscdimg…" : "Building the bootable ISO with oscdimg…";
     public string StatusCancelling => IsPtBr ? "Cancelando… aguarde a limpeza." : "Cancelling… waiting for cleanup.";
     public string LogCancelledByUser => IsPtBr ? "Operação cancelada pelo usuário." : "Operation cancelled by user.";
     public string LogProcessFailed => IsPtBr ? "Falha ao executar {0}: {1}" : "Failed to run {0}: {1}";

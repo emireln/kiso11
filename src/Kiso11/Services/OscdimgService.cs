@@ -79,13 +79,13 @@ public class OscdimgService
             var expandExit = await _runner.RunAsync("expand.exe", $"-F:* \"{cabFilePath}\" \"{tempFolder}\"", tempFolder, cancellationToken);
             if (expandExit != 0)
             {
-                throw new InvalidOperationException($"expand.exe falhou ao extrair o CAB com código {expandExit}");
+                throw new InvalidOperationException(string.Format(LocalizationService.Instance.ErrOscdimgExtract, expandExit));
             }
 
             var extractedFile = Path.Combine(tempFolder, "fil720cc132fbb53f3bed2e525eb77bdbc1");
             if (!File.Exists(extractedFile))
             {
-                throw new FileNotFoundException("Arquivo oscdimg não encontrado no pacote extraído.");
+                throw new FileNotFoundException(LocalizationService.Instance.ErrOscdimgMissing);
             }
 
             File.Copy(extractedFile, destinationPath, overwrite: true);
