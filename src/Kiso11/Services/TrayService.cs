@@ -306,11 +306,8 @@ public class TrayService : IDisposable
         {
             Header = loc.TrayExit
         };
-        itemExit.Click += (s, e) =>
-        {
-            Dispose();
-            System.Windows.Application.Current.Shutdown();
-        };
+        // Close the window, so a running build gets the same confirmation and cleanup as the title bar close button.
+        itemExit.Click += (s, e) => _window.Close();
         menu.Items.Add(itemExit);
 
         _currentMenu = menu;
