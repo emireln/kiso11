@@ -197,4 +197,24 @@ public class LocalizationService : INotifyPropertyChanged
     public string ConsoleTitle => IsPtBr ? "Console de Operações (Tempo Real)" : "Live Operation Console";
     public string CopyText => IsPtBr ? "Copiar" : "Copy";
     public string ClearText => IsPtBr ? "Limpar" : "Clear";
+
+    // Process and USB
+    public string LogCancelledByUser => IsPtBr ? "Operação cancelada pelo usuário." : "Operation cancelled by user.";
+    public string LogProcessFailed => IsPtBr ? "Falha ao executar {0}: {1}" : "Failed to run {0}: {1}";
+    public string UsbNoLabel => IsPtBr ? "sem nome" : "no label";
+    public string UsbTooLargeNote => IsPtBr ? "acima de 32 GB" : "over 32 GB";
+    public string ErrInvalidDrive => IsPtBr ? "Letra de unidade inválida." : "Invalid drive letter.";
+    public string ErrSystemDrive => IsPtBr ? "Operação bloqueada: esta é a unidade do sistema." : "Blocked: this is the system drive.";
+    public string ErrNotRemovable => IsPtBr ? "A unidade {0} não é removível. Nada foi formatado." : "Drive {0} is not removable. Nothing was formatted.";
+    public string ErrUsbTooLarge => IsPtBr ? "A unidade {0} tem mais de 32 GB. O Windows não formata FAT32 nesse tamanho." : "Drive {0} is over 32 GB. Windows cannot format FAT32 at that size.";
+    public string ErrFormatUsb => IsPtBr ? "Não foi possível formatar a unidade {0}. Verifique se ela está em uso." : "Could not format drive {0}. Check whether it is in use.";
+    public string ErrRobocopy => IsPtBr ? "Robocopy falhou ao copiar arquivos (código {0})." : "Robocopy failed to copy files (exit code {0}).";
+    public string ErrInstallWimMissing => IsPtBr ? "install.wim não encontrado no diretório de origem." : "install.wim was not found in the source folder.";
+    public string ErrSplitWim => IsPtBr ? "Falha ao dividir install.wim com DISM (código {0})." : "DISM failed to split install.wim (exit code {0}).";
+    public string MsgFormattingUsb => IsPtBr ? "Formatando pendrive em FAT32…" : "Formatting USB drive as FAT32…";
+    public string MsgCopyingBootFiles => IsPtBr ? "Copiando arquivos de inicialização…" : "Copying boot files…";
+    public string MsgSplittingWim => IsPtBr ? "install.wim passa de 4 GB. Dividindo em partes .swm…" : "install.wim is over 4 GB. Splitting into .swm parts…";
+    public string MsgCopyingWim => IsPtBr ? "Copiando install.wim…" : "Copying install.wim…";
+    public string MsgWritingBootSector => IsPtBr ? "Gravando setor de inicialização…" : "Writing boot sector…";
+    public string MsgUsbReady => IsPtBr ? "Pendrive pronto." : "USB drive ready.";
 }

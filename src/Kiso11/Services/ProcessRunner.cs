@@ -11,12 +11,54 @@ public class ProcessRunner
 {
     public event Action<string>? LineReceived;
 
+    /// Writes a line to the operation log without starting a process.
+    public void Report(string message) => LineReceived?.Invoke(message);
+
     public async Task<int> RunAsync(
         string fileName,
         string arguments,
         string? workingDirectory = null,
         CancellationToken cancellationToken = default)
     {
+        var (exitCode, _) = await ExecuteAsync(fileName, arguments, workingDirectory, log: true, cancellationToken);
+        return exitCode;
+    }
+
+    public async Task<string> RunAndCaptureOutputAsync(
+        string fileName,
+        string arguments,
+        string? workingDirectory = null,
+        CancellationToken cancellationToken = default)
+    {
+        var (_, output) = await ExecuteAsync(fileName, arguments, workingDirectory, log: true, cancellationToken);
+        return output;
+    }
+
+    /// Runs a PowerShell script. The script is passed base64-encoded, so quotes and apostrophes in paths cannot break it.
+    public Task<(int ExitCode, string Output)> PowerShellAsync(
+        string script,
+        CancellationToken cancellationToken = default,
+        bool log = true)
+    {
+        var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+        return ExecuteAsync(
+            "powershell.exe",
+            $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand {encoded}",
+            null,
+            log,
+            cancellationToken);
+    }
+
+    private async Task<(int ExitCode, string Output)> ExecuteAsync(
+        string fileName,
+        string arguments,
+        string? workingDirectory,
+        bool log,
+        CancellationToken cancellationToken)
+    {
+        var output = new StringBuilder();
+        var outputLock = new object();
+
         var psi = new ProcessStartInfo
         {
             FileName = fileName,
@@ -32,21 +74,23 @@ public class ProcessRunner
 
         using var process = new Process { StartInfo = psi };
 
-        process.OutputDataReceived += (_, e) =>
+        void HandleLine(string? data)
         {
-            if (e.Data != null)
-            {
-                LineReceived?.Invoke(e.Data);
-            }
-        };
+            if (data == null) return;
 
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (e.Data != null)
+            lock (outputLock)
             {
-                LineReceived?.Invoke(e.Data);
+                output.AppendLine(data);
             }
-        };
+
+            if (log)
+            {
+                LineReceived?.Invoke(data);
+            }
+        }
+
+        process.OutputDataReceived += (_, e) => HandleLine(e.Data);
+        process.ErrorDataReceived += (_, e) => HandleLine(e.Data);
 
         try
         {
@@ -54,7 +98,7 @@ public class ProcessRunner
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
-            using var reg = cancellationToken.Register(() =>
+            using var registration = cancellationToken.Register(() =>
             {
                 try
                 {
@@ -67,66 +111,24 @@ public class ProcessRunner
             });
 
             await process.WaitForExitAsync(cancellationToken);
-            return process.ExitCode;
+
+            string captured;
+            lock (outputLock)
+            {
+                captured = output.ToString();
+            }
+
+            return (process.ExitCode, captured);
         }
         catch (OperationCanceledException)
         {
-            LineReceived?.Invoke("[AVISO] Operação cancelada pelo usuário.");
+            Report(LocalizationService.Instance.LogCancelledByUser);
             throw;
         }
         catch (Exception ex)
         {
-            LineReceived?.Invoke($"[ERRO] Falha ao executar {fileName}: {ex.Message}");
+            Report(string.Format(LocalizationService.Instance.LogProcessFailed, fileName, ex.Message));
             throw;
         }
-    }
-
-    public async Task<string> RunAndCaptureOutputAsync(
-        string fileName,
-        string arguments,
-        string? workingDirectory = null,
-        CancellationToken cancellationToken = default)
-    {
-        var outputBuilder = new StringBuilder();
-
-        var psi = new ProcessStartInfo
-        {
-            FileName = fileName,
-            Arguments = arguments,
-            WorkingDirectory = workingDirectory ?? Directory.GetCurrentDirectory(),
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
-        };
-
-        using var process = new Process { StartInfo = psi };
-
-        process.OutputDataReceived += (_, e) =>
-        {
-            if (e.Data != null)
-            {
-                outputBuilder.AppendLine(e.Data);
-                LineReceived?.Invoke(e.Data);
-            }
-        };
-
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (e.Data != null)
-            {
-                outputBuilder.AppendLine(e.Data);
-                LineReceived?.Invoke(e.Data);
-            }
-        };
-
-        process.Start();
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-
-        await process.WaitForExitAsync(cancellationToken);
-        return outputBuilder.ToString();
     }
 }

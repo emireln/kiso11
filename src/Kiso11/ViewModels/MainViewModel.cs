@@ -140,7 +140,7 @@ public class MainViewModel : BaseViewModel
     public bool CanGoNext => CurrentStep switch
     {
         1 => IsIsoValid,
-        2 => OutputMode == OutputMode.BootableUsb ? SelectedUsbDrive != null : !string.IsNullOrWhiteSpace(OutputIsoPath),
+        2 => OutputMode == OutputMode.BootableUsb ? SelectedUsbDrive is { IsSupported: true } : !string.IsNullOrWhiteSpace(OutputIsoPath),
         3 => CanStartProcess(),
         _ => false
     };
@@ -171,7 +171,7 @@ public class MainViewModel : BaseViewModel
     {
         if (State == ProcessState.Running) return;
         if (step == 2 && !IsIsoValid) return;
-        if (step == 3 && (!IsIsoValid || (OutputMode == OutputMode.BootableUsb ? SelectedUsbDrive == null : string.IsNullOrWhiteSpace(OutputIsoPath)))) return;
+        if (step == 3 && (!IsIsoValid || (OutputMode == OutputMode.BootableUsb ? SelectedUsbDrive is not { IsSupported: true } : string.IsNullOrWhiteSpace(OutputIsoPath)))) return;
         if (step >= 1 && step <= 3)
         {
             CurrentStep = step;
@@ -494,9 +494,9 @@ public class MainViewModel : BaseViewModel
             SelectedUsbDrive = UsbDrives.FirstOrDefault(d => d.DriveLetter.Equals(currentSelected, StringComparison.OrdinalIgnoreCase));
         }
 
-        if (SelectedUsbDrive == null && UsbDrives.Count > 0)
+        if (SelectedUsbDrive is not { IsSupported: true })
         {
-            SelectedUsbDrive = UsbDrives[0];
+            SelectedUsbDrive = UsbDrives.FirstOrDefault(d => d.IsSupported);
         }
 
         ((RelayCommand)StartProcessCommand).RaiseCanExecuteChanged();
@@ -542,7 +542,7 @@ public class MainViewModel : BaseViewModel
 
         if (OutputMode == OutputMode.BootableUsb)
         {
-            return SelectedUsbDrive != null;
+            return SelectedUsbDrive is { IsSupported: true };
         }
 
         return !string.IsNullOrWhiteSpace(OutputIsoPath);

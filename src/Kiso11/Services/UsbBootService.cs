@@ -10,6 +10,9 @@ namespace Kiso11.Services;
 
 public class UsbBootService
 {
+    private const string VolumeLabel = "KISO11";
+    private const long Fat32MaxSingleFileBytes = 4294967295L; // 4 GB - 1 byte
+
     private readonly ProcessRunner _runner;
 
     public UsbBootService(ProcessRunner runner)
@@ -23,66 +26,54 @@ public class UsbBootService
 
         try
         {
-            var systemDrive = (Environment.GetEnvironmentVariable("SystemDrive") ?? "C:").TrimEnd('\\');
+            var systemDrive = SystemDriveLetter();
 
-            var drives = DriveInfo.GetDrives()
-                .Where(d => d.IsReady && d.DriveType == DriveType.Removable)
-                .ToList();
-
-            foreach (var d in drives)
+            foreach (var d in DriveInfo.GetDrives().Where(d => d.IsReady && d.DriveType == DriveType.Removable))
             {
                 var letter = d.Name.TrimEnd('\\');
-                if (letter.Equals(systemDrive, StringComparison.OrdinalIgnoreCase)) continue;
+                if (letter.Equals(systemDrive + ":", StringComparison.OrdinalIgnoreCase)) continue;
 
-                var label = string.IsNullOrWhiteSpace(d.VolumeLabel) ? "USB Drive" : d.VolumeLabel;
                 result.Add(new UsbDriveItem
                 {
                     DriveLetter = letter,
-                    VolumeLabel = label,
+                    VolumeLabel = d.VolumeLabel,
                     TotalBytes = d.TotalSize,
-                    FreeBytes = d.TotalFreeSpace,
-                    Model = "Disco Removível USB"
+                    FreeBytes = d.TotalFreeSpace
                 });
             }
         }
         catch
         {
-            // Fallback silently without blocking the UI
+            // A failed drive scan leaves the list empty instead of blocking the UI.
         }
 
         return result;
     }
 
-    public async Task<bool> FormatUsbDriveAsync(string driveLetter, string label = "KISO11", CancellationToken cancellationToken = default)
+    public async Task FormatUsbDriveAsync(string driveLetter, CancellationToken cancellationToken = default)
     {
-        var cleanLetter = driveLetter.TrimEnd('\\', ':');
-        var systemDrive = (Environment.GetEnvironmentVariable("SystemDrive") ?? "C:").TrimEnd('\\', ':');
+        var letter = ValidateTarget(driveLetter);
 
-        if (cleanLetter.Equals(systemDrive, StringComparison.OrdinalIgnoreCase))
+        var script = $"Format-Volume -DriveLetter '{letter}' -FileSystem FAT32 -NewFileSystemLabel '{VolumeLabel}' -Force -Confirm:$false | Out-Null";
+        var (exitCode, _) = await _runner.PowerShellAsync(script, cancellationToken);
+        if (exitCode == 0) return;
+
+        // Format-Volume can fail on a busy volume, so retry with diskpart.
+        var diskpartScript = Path.Combine(Path.GetTempPath(), $"kiso11_format_{Guid.NewGuid():N}.txt");
+        await File.WriteAllTextAsync(diskpartScript, $"select volume {letter}\nformat fs=fat32 quick label={VolumeLabel}\nassign letter={letter}\nexit\n", cancellationToken);
+        try
         {
-            throw new InvalidOperationException("Tentativa bloqueada de formatar o drive do sistema!");
+            exitCode = await _runner.RunAsync("diskpart.exe", $"/s \"{diskpartScript}\"", null, cancellationToken);
         }
-
-        // Use PowerShell Format-Volume for reliable FAT32 format
-        var psCommand = $"Format-Volume -DriveLetter '{cleanLetter}' -FileSystem FAT32 -NewFileSystemLabel '{label}' -Force";
-        var exitCode = await _runner.RunAsync("powershell.exe", $"-NoProfile -ExecutionPolicy Bypass -Command \"{psCommand}\"", null, cancellationToken);
+        finally
+        {
+            if (File.Exists(diskpartScript)) File.Delete(diskpartScript);
+        }
 
         if (exitCode != 0)
         {
-            // Fallback to diskpart script
-            var diskpartScript = Path.Combine(Path.GetTempPath(), $"kiso11_format_{Guid.NewGuid():N}.txt");
-            await File.WriteAllTextAsync(diskpartScript, $"select volume {cleanLetter}\nformat fs=fat32 quick label={label}\nassign letter={cleanLetter}\nexit\n", cancellationToken);
-            try
-            {
-                exitCode = await _runner.RunAsync("diskpart.exe", $"/s \"{diskpartScript}\"", null, cancellationToken);
-            }
-            finally
-            {
-                if (File.Exists(diskpartScript)) File.Delete(diskpartScript);
-            }
+            throw new InvalidOperationException(string.Format(LocalizationService.Instance.ErrFormatUsb, letter));
         }
-
-        return exitCode == 0;
     }
 
     public async Task CreateBootableUsbAsync(
@@ -91,65 +82,96 @@ public class UsbBootService
         Action<int, string> onProgress,
         CancellationToken cancellationToken = default)
     {
-        var cleanLetter = usbDriveLetter.TrimEnd('\\');
-        var usbTarget = $"{cleanLetter}\\";
+        var loc = LocalizationService.Instance;
+        var letter = ValidateTarget(usbDriveLetter);
+        var usbTarget = $"{letter}\\";
 
-        onProgress(5, "Formatando pendrive para FAT32 (compatível com UEFI)...");
-        var formatted = await FormatUsbDriveAsync(cleanLetter, "KISO11", cancellationToken);
-        if (!formatted)
-        {
-            throw new InvalidOperationException($"Não foi possível formatar o pendrive {cleanLetter}. Verifique se ele está em uso.");
-        }
+        onProgress(5, loc.MsgFormattingUsb);
+        await FormatUsbDriveAsync(letter, cancellationToken);
 
-        onProgress(15, "Copiando arquivos de inicialização e setup para o pendrive...");
-
-        // Ensure target directories exist
+        onProgress(15, loc.MsgCopyingBootFiles);
         var targetSources = Path.Combine(usbTarget, "sources");
         Directory.CreateDirectory(targetSources);
 
-        // Copy everything using Robocopy, excluding install.wim which might need splitting
+        // install.wim is copied separately because it may need splitting.
         var robocopyArgs = $"\"{sourceDirectory}\" \"{usbTarget}\" /E /XF install.wim /R:2 /W:2 /MT:8 /NP /NFL /NDL";
         var roboExit = await _runner.RunAsync("robocopy.exe", robocopyArgs, sourceDirectory, cancellationToken);
         if (roboExit > 7)
         {
-            throw new InvalidOperationException($"Robocopy retornou código de erro {roboExit}");
+            throw new InvalidOperationException(string.Format(loc.ErrRobocopy, roboExit));
         }
 
         var sourceInstallWim = Path.Combine(sourceDirectory, "sources", "install.wim");
         if (!File.Exists(sourceInstallWim))
         {
-            throw new FileNotFoundException("install.wim não encontrado no diretório de origem.");
+            throw new FileNotFoundException(loc.ErrInstallWimMissing);
         }
 
-        var wimFileInfo = new FileInfo(sourceInstallWim);
-        const long fat32MaxSingleFile = 4294967295L; // 4GB - 1 byte
-
-        if (wimFileInfo.Length >= fat32MaxSingleFile)
+        if (new FileInfo(sourceInstallWim).Length >= Fat32MaxSingleFileBytes)
         {
-            onProgress(60, "Arquivo install.wim > 4GB. Dividindo em partes SWM para compatibilidade FAT32 UEFI...");
+            onProgress(60, loc.MsgSplittingWim);
             var targetSwm = Path.Combine(targetSources, "install.swm");
-            var dismSplitArgs = $"/Split-Image /ImageFile:\"{sourceInstallWim}\" /SWMFile:\"{targetSwm}\" /FileSize:3800";
-            var dismExit = await _runner.RunAsync("dism.exe", dismSplitArgs, null, cancellationToken);
+            var dismExit = await _runner.RunAsync(
+                "dism.exe",
+                $"/Split-Image /ImageFile:\"{sourceInstallWim}\" /SWMFile:\"{targetSwm}\" /FileSize:3800",
+                null,
+                cancellationToken);
 
             if (dismExit != 0)
             {
-                throw new InvalidOperationException($"Falha ao dividir o arquivo install.wim com DISM (código {dismExit}).");
+                throw new InvalidOperationException(string.Format(loc.ErrSplitWim, dismExit));
             }
         }
         else
         {
-            onProgress(60, "Copiando install.wim para o pendrive...");
+            onProgress(60, loc.MsgCopyingWim);
             var targetWim = Path.Combine(targetSources, "install.wim");
             await Task.Run(() => File.Copy(sourceInstallWim, targetWim, overwrite: true), cancellationToken);
         }
 
-        onProgress(95, "Configurando setor de inicialização de boot...");
+        onProgress(95, loc.MsgWritingBootSector);
         var bootsectPath = Path.Combine(sourceDirectory, "boot", "bootsect.exe");
         if (File.Exists(bootsectPath))
         {
-            await _runner.RunAsync(bootsectPath, $"/nt60 {cleanLetter} /force", null, cancellationToken);
+            await _runner.RunAsync(bootsectPath, $"/nt60 {letter}: /force", null, cancellationToken);
         }
 
-        onProgress(100, "Pendrive bootável criado com sucesso!");
+        onProgress(100, loc.MsgUsbReady);
+    }
+
+    /// Checks that a drive is safe to format before anything is erased.
+    private static string ValidateTarget(string driveLetter)
+    {
+        var loc = LocalizationService.Instance;
+        var letter = driveLetter.Trim().TrimEnd('\\', ':').ToUpperInvariant();
+
+        if (letter.Length != 1 || !char.IsLetter(letter[0]))
+        {
+            throw new ArgumentException(loc.ErrInvalidDrive, nameof(driveLetter));
+        }
+
+        if (letter.Equals(SystemDriveLetter(), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(loc.ErrSystemDrive);
+        }
+
+        var info = new DriveInfo(letter + ":\\");
+        if (info.DriveType != DriveType.Removable)
+        {
+            throw new InvalidOperationException(string.Format(loc.ErrNotRemovable, letter));
+        }
+
+        if (info.TotalSize > UsbDriveItem.Fat32FormatLimitBytes)
+        {
+            throw new InvalidOperationException(string.Format(loc.ErrUsbTooLarge, letter));
+        }
+
+        return letter;
+    }
+
+    private static string SystemDriveLetter()
+    {
+        var systemDrive = Environment.GetEnvironmentVariable("SystemDrive") ?? "C:";
+        return systemDrive.TrimEnd('\\', ':').ToUpperInvariant();
     }
 }

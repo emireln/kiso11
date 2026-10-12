@@ -527,8 +527,14 @@
 
                             <ComboBox ItemsSource="{Binding UsbDrives}"
                                       SelectedItem="{Binding SelectedUsbDrive}"
-                                      DisplayMemberPath="DisplayText"
-                                      Margin="0,0,0,14" />
+                                      DisplayMemberPath="DisplayName"
+                                      Margin="0,0,0,14">
+                                <ComboBox.ItemContainerStyle>
+                                    <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                        <Setter Property="IsEnabled" Value="{Binding IsSupported}" />
+                                    </Style>
+                                </ComboBox.ItemContainerStyle>
+                            </ComboBox>
 
                             <!-- Warning Notice -->
                             <Border Background="#1f1810"
