@@ -66,6 +66,7 @@ public class MainViewModel : BaseViewModel
         _runner.LineReceived += OnLogLineReceived;
 
         UsbDrives = new ObservableCollection<UsbDriveItem>();
+        UsbDrives.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasUsbDrives));
         DebloatOptions = new DebloatOptions();
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -129,6 +130,7 @@ public class MainViewModel : BaseViewModel
                 OnPropertyChanged(nameof(IsStep4));
                 OnPropertyChanged(nameof(CanGoNext));
                 OnPropertyChanged(nameof(CanGoBack));
+                NotifyFooterButtons();
                 ((RelayCommand)NextStepCommand).RaiseCanExecuteChanged();
                 ((RelayCommand)PreviousStepCommand).RaiseCanExecuteChanged();
             }
@@ -149,7 +151,7 @@ public class MainViewModel : BaseViewModel
         {
             if (SetProperty(ref _isInspecting, value))
             {
-                OnPropertyChanged(nameof(InspectionMessage));
+                RaiseInspection();
                 OnPropertyChanged(nameof(CanGoNext));
             }
         }
@@ -182,6 +184,47 @@ public class MainViewModel : BaseViewModel
     };
 
     public bool CanGoBack => CurrentStep > 1 && CurrentStep < 4 && State != ProcessState.Running;
+
+    public bool ShowNextButton => CurrentStep is 1 or 2 && !IsProcessing;
+    public bool ShowStartButton => CurrentStep == 3 && !IsProcessing;
+    public bool ShowCancelButton => IsProcessing;
+    public bool ShowNewRunButton => CurrentStep == 4 && !IsProcessing;
+    public bool HasUsbDrives => UsbDrives.Count > 0;
+    public bool IsInspectionError => !IsInspecting && !string.IsNullOrEmpty(_inspectionError);
+
+    private void NotifyFooterButtons()
+    {
+        OnPropertyChanged(nameof(ShowNextButton));
+        OnPropertyChanged(nameof(ShowStartButton));
+        OnPropertyChanged(nameof(ShowCancelButton));
+        OnPropertyChanged(nameof(ShowNewRunButton));
+    }
+
+    private void RaiseInspection()
+    {
+        OnPropertyChanged("InspectionMessage");
+        OnPropertyChanged(nameof(IsInspectionError));
+    }
+
+    /// Fills the view model with fixed values for the render preview. It starts no processes.
+    internal void ApplyPreview(string isoPath, string fileName, string sizeText, IEnumerable<WimEdition> editions)
+    {
+        _isoPath = isoPath;
+        OnPropertyChanged(nameof(IsoPath));
+        IsoFileName = fileName;
+        IsoSizeText = sizeText;
+
+        Editions.Clear();
+        foreach (var edition in editions)
+        {
+            Editions.Add(edition);
+        }
+
+        SelectedEdition = Editions.FirstOrDefault(IsPreferredEdition) ?? Editions.FirstOrDefault();
+        IsIsoValid = SelectedEdition != null;
+        OnPropertyChanged(nameof(HasIsoSelected));
+        OnPropertyChanged(nameof(CanGoNext));
+    }
 
     public void NextStep()
     {
@@ -402,6 +445,7 @@ public class MainViewModel : BaseViewModel
             {
                 OnPropertyChanged(nameof(IsProcessing));
                 OnPropertyChanged(nameof(CanEditConfig));
+                NotifyFooterButtons();
                 ((RelayCommand)StartProcessCommand).RaiseCanExecuteChanged();
                 ((RelayCommand)CancelProcessCommand).RaiseCanExecuteChanged();
             }
@@ -556,7 +600,7 @@ public class MainViewModel : BaseViewModel
         SelectedEdition = null;
         IsIsoValid = false;
         _inspectionError = string.Empty;
-        OnPropertyChanged(nameof(InspectionMessage));
+        RaiseInspection();
         OnPropertyChanged(nameof(HasIsoSelected));
 
         if (File.Exists(IsoPath))
@@ -577,7 +621,7 @@ public class MainViewModel : BaseViewModel
             IsoFileName = Loc.FileNotFound;
             IsoSizeText = "-";
             _inspectionError = Loc.FileNotFound;
-            OnPropertyChanged(nameof(InspectionMessage));
+            RaiseInspection();
         }
 
         OnPropertyChanged(nameof(CanGoNext));
@@ -629,7 +673,7 @@ public class MainViewModel : BaseViewModel
             if (_inspectCts == cts)
             {
                 IsInspecting = false;
-                OnPropertyChanged(nameof(InspectionMessage));
+                RaiseInspection();
                 OnPropertyChanged(nameof(CanGoNext));
                 ((RelayCommand)NextStepCommand).RaiseCanExecuteChanged();
                 ((RelayCommand)StartProcessCommand).RaiseCanExecuteChanged();

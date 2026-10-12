@@ -49,6 +49,12 @@
         <Setter Property="Background" Value="{StaticResource WindowBackground}" />
     </Style>
 
+    <!-- Text inherits the theme colour and font unless a style sets its own -->
+    <Style TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource MainFontFamily}" />
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+    </Style>
+
     <Style TargetType="ToolTip">
         <Setter Property="Background" Value="{StaticResource CardHoverBrush}" />
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
@@ -326,7 +332,7 @@
         <Setter Property="MinHeight" Value="0" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="FontFamily" Value="{StaticResource IconFontFamily}" />
-        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontSize" Value="14" />
     </Style>
 
     <!-- ============================================================ -->
@@ -345,7 +351,7 @@
                     <Border x:Name="TabBorder"
                             Background="Transparent"
                             BorderBrush="{StaticResource AccentBrush}"
-                            BorderThickness="0,0,0,2"
+                            BorderThickness="0"
                             Padding="4,0">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>

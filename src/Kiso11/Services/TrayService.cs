@@ -260,7 +260,7 @@ public class TrayService : IDisposable
         // 2. Minimizar para bandeja
         var itemMin = new MenuItem
         {
-            Header = loc.TrayMinimize,
+            Header = loc.MinimizeToTray,
             IsEnabled = _window.IsVisible && _window.WindowState != WindowState.Minimized
         };
         itemMin.Click += (s, e) => MinimizeToTray();
