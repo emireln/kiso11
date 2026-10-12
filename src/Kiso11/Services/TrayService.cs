@@ -99,7 +99,6 @@ public class TrayService : IDisposable
         _vm = vm;
 
         _window.SourceInitialized += OnSourceInitialized;
-        _window.StateChanged += OnWindowStateChanged;
 
         _vm.RequestMinimizeToTray += MinimizeToTray;
         _vm.TrayStatusUpdated += UpdateTooltip;
@@ -209,14 +208,6 @@ public class TrayService : IDisposable
         _window.Activate();
         SetForegroundWindow(_hwnd);
         _window.Focus();
-    }
-
-    private void OnWindowStateChanged(object? sender, EventArgs e)
-    {
-        if (_window.WindowState == WindowState.Minimized)
-        {
-            MinimizeToTray();
-        }
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
