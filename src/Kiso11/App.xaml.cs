@@ -28,6 +28,8 @@ public partial class App : System.Windows.Application
         DispatcherUnhandledException += (_, args) =>
         {
             WriteLog($"UI exception: {args.Exception}");
+            var loc = Services.LocalizationService.Instance;
+            Services.Dialogs.Info(loc.ErrorTitle, loc.ErrorBody(args.Exception.Message), loc.Ok);
             args.Handled = true;
         };
 
@@ -49,7 +51,8 @@ public partial class App : System.Windows.Application
         catch (Exception ex)
         {
             WriteLog($"Startup failed: {ex}");
-            MessageBox.Show(ex.Message, "Kiso11", MessageBoxButton.OK, MessageBoxImage.Error);
+            var loc = Services.LocalizationService.Instance;
+            Services.Dialogs.Info(loc.ErrorTitle, loc.ErrorBody(ex.Message), loc.Ok);
             Shutdown(1);
         }
     }
@@ -147,7 +150,35 @@ public partial class App : System.Windows.Application
 
         Languages("_pt", AppLanguage.PtBr);
         Languages("_en", AppLanguage.En);
+
+        var dialog = new Views.ThemedDialog(
+            loc.UsbFormatConfirmTitle,
+            loc.UsbFormatConfirm("E:", "KINGSTON", "14,9 GB"),
+            new[]
+            {
+                new DialogButton(loc.Cancel, DialogButtonKind.Secondary),
+                new DialogButton(loc.FormatAndWrite, DialogButtonKind.Danger)
+            });
+        SaveElement((System.Windows.FrameworkElement)dialog.Content, Path.Combine(outputDir, "dialog_format_pt.png"), dialog.Width);
+
         loc.CurrentLanguage = AppLanguage.PtBr;
+    }
+
+    /// Renders a dialog at its natural height.
+    private static void SaveElement(System.Windows.FrameworkElement root, string path, double width)
+    {
+        root.Measure(new System.Windows.Size(width, double.PositiveInfinity));
+        var height = root.DesiredSize.Height;
+        root.Arrange(new System.Windows.Rect(0, 0, width, height));
+        root.UpdateLayout();
+
+        var bitmap = new RenderTargetBitmap((int)width, (int)height, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(root);
+
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(path);
+        encoder.Save(stream);
     }
 
     private static void SavePng(Views.MainWindow window, string path)

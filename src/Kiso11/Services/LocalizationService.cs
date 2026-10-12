@@ -228,6 +228,7 @@ public class LocalizationService : INotifyPropertyChanged
 
     // Errors and messages from services
     public string ErrGeneric => IsPtBr ? "Erro: {0}" : "Error: {0}";
+    public string ErrElevate => IsPtBr ? "Não foi possível reiniciar como administrador: {0}" : "Could not restart as administrator: {0}";
     public string StatusCancelling => IsPtBr ? "Cancelando… aguarde a limpeza." : "Cancelling… waiting for cleanup.";
     public string LogCancelledByUser => IsPtBr ? "Operação cancelada pelo usuário." : "Operation cancelled by user.";
     public string LogProcessFailed => IsPtBr ? "Falha ao executar {0}: {1}" : "Failed to run {0}: {1}";

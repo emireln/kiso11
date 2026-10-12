@@ -961,13 +961,7 @@ public class MainViewModel : BaseViewModel
     {
         if (_cts != null && !_cts.IsCancellationRequested)
         {
-            var result = MessageBox.Show(
-                "Deseja realmente cancelar a operação em andamento?\nImagens montadas serão descartadas com segurança.",
-                "Cancelar Kiso11",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
+            if (Dialogs.Confirm(Loc.CancelOperationTitle, Loc.CancelOperationMsg, Loc.CancelOperationConfirm, Loc.KeepRunning, danger: true))
             {
                 _cts.Cancel();
                 StatusMessage = Loc.StatusCancelling;
@@ -1045,7 +1039,7 @@ public class MainViewModel : BaseViewModel
         try
         {
             Clipboard.SetText(LogText);
-            MessageBox.Show("Logs copiados para a área de transferência.", "Kiso11", MessageBoxButton.OK, MessageBoxImage.Information);
+            StatusMessage = Loc.LogCopied;
         }
         catch { }
     }
@@ -1077,7 +1071,7 @@ public class MainViewModel : BaseViewModel
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Não foi possível elevar o processo: {ex.Message}", "Kiso11", MessageBoxButton.OK, MessageBoxImage.Warning);
+            Dialogs.Info(Loc.ErrorTitle, string.Format(Loc.ErrElevate, ex.Message), Loc.Ok);
         }
     }
 }

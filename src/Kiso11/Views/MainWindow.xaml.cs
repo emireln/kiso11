@@ -76,19 +76,20 @@ public partial class MainWindow : Window
 
         e.Cancel = true;
 
-        var result = MessageBox.Show(
-            vm.Loc.ClosePromptRunningMsg,
+        var choice = Dialogs.Show(
             vm.Loc.ClosePromptRunningTitle,
-            MessageBoxButton.YesNoCancel,
-            MessageBoxImage.Question);
+            vm.Loc.ClosePromptRunningMsg,
+            new DialogButton(vm.Loc.KeepRunning, DialogButtonKind.Ghost),
+            new DialogButton(vm.Loc.MinimizeAction, DialogButtonKind.Secondary),
+            new DialogButton(vm.Loc.CancelAndClose, DialogButtonKind.Danger));
 
-        if (result == MessageBoxResult.Yes)
+        if (choice == 1)
         {
             _trayService?.MinimizeToTray();
             return;
         }
 
-        if (result == MessageBoxResult.Cancel)
+        if (choice != 2)
         {
             return;
         }
