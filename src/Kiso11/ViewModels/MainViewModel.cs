@@ -24,6 +24,7 @@ public class MainViewModel : BaseViewModel
     private readonly OscdimgService _oscdimgService;
 
     private CancellationTokenSource? _cts;
+    private Task? _runTask;
     private readonly DispatcherTimer _timer;
     private readonly Stopwatch _stopwatch = new();
 
@@ -74,7 +75,7 @@ public class MainViewModel : BaseViewModel
         BrowseOutputIsoCommand = new RelayCommand(BrowseOutputIso);
         RefreshUsbDrivesCommand = new RelayCommand(RefreshUsbDrives);
         SelectPresetRecommendedCommand = new RelayCommand(SelectPresetRecommended);
-        StartProcessCommand = new RelayCommand(async () => await StartProcessAsync(), () => CanStartProcess());
+        StartProcessCommand = new RelayCommand(() => _runTask = StartProcessAsync(), () => CanStartProcess());
         CancelProcessCommand = new RelayCommand(CancelProcess, () => IsProcessing);
         CopyLogCommand = new RelayCommand(CopyLog);
         ClearLogCommand = new RelayCommand(ClearLog);
@@ -282,6 +283,9 @@ public class MainViewModel : BaseViewModel
         get => _isoPath;
         set
         {
+            // The ISO and output path must not change while a run is using them.
+            if (IsProcessing) return;
+
             if (SetProperty(ref _isoPath, value))
             {
                 UpdateIsoDetails();
@@ -685,6 +689,9 @@ public class MainViewModel : BaseViewModel
         State = ProcessState.Running;
         CurrentStep = 4;
         _cts = new CancellationTokenSource();
+        ClearLog();
+        ElapsedTimeFormatted = "00:00";
+        EstimatedRemainingFormatted = "--:--";
         _stopwatch.Restart();
         _timer.Start();
 
@@ -867,15 +874,15 @@ public class MainViewModel : BaseViewModel
         catch (OperationCanceledException)
         {
             State = ProcessState.Cancelled;
-            StatusMessage = "Operação cancelada pelo usuário.";
-            CurrentStageText = "Cancelado";
-            Log("[Kiso11] Operação cancelada pelo usuário.");
+            StatusMessage = Loc.LogCancelledByUser;
+            CurrentStageText = Loc.StateCancelled;
+            Log(Loc.LogCancelledByUser);
         }
         catch (Exception ex)
         {
             State = ProcessState.Failed;
-            StatusMessage = $"Erro: {ex.Message}";
-            CurrentStageText = "Falha";
+            StatusMessage = string.Format(Loc.ErrGeneric, ex.Message);
+            CurrentStageText = Loc.StateFailed;
             Log($"[Kiso11 ERRO] {ex.Message}\n{ex.StackTrace}");
 
             MessageBox.Show(
@@ -889,14 +896,20 @@ public class MainViewModel : BaseViewModel
             _timer.Stop();
             _stopwatch.Stop();
 
-            // Desmonta e limpa qualquer diretório temporário
-            CurrentStageText += " (Limpando temporários...)";
+            // Unmount anything left behind and remove the work folder, then restore the final status.
+            var finalStage = CurrentStageText;
+            var finalStatus = StatusMessage;
+            CurrentStageText = Loc.StageCleanup;
+
             await _dismService.CleanupMountDirAsync(mountDir);
             try
             {
                 if (Directory.Exists(workDir)) Directory.Delete(workDir, recursive: true);
             }
             catch { }
+
+            CurrentStageText = finalStage;
+            StatusMessage = finalStatus;
         }
     }
 
@@ -913,15 +926,29 @@ public class MainViewModel : BaseViewModel
             if (result == MessageBoxResult.Yes)
             {
                 _cts.Cancel();
-                StatusMessage = "Cancelando operação... aguarde a limpeza.";
+                StatusMessage = Loc.StatusCancelling;
             }
+        }
+    }
+
+    /// Cancels the running operation without asking, then waits until its cleanup has finished.
+    public async Task CancelAndWaitAsync()
+    {
+        _cts?.Cancel();
+        if (_runTask != null)
+        {
+            try
+            {
+                await _runTask;
+            }
+            catch { }
         }
     }
 
     private void OnTimerTick(object? sender, EventArgs e)
     {
         var elapsed = _stopwatch.Elapsed;
-        ElapsedTimeFormatted = $"{elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
+        ElapsedTimeFormatted = FormatDuration(elapsed);
 
         // Estimate remaining time based on progress
         if (ProgressPercentage > 5 && ProgressPercentage < 100)
@@ -929,13 +956,18 @@ public class MainViewModel : BaseViewModel
             var totalSeconds = elapsed.TotalSeconds;
             var estimatedTotal = totalSeconds / (ProgressPercentage / 100.0);
             var remaining = TimeSpan.FromSeconds(Math.Max(0, estimatedTotal - totalSeconds));
-            EstimatedRemainingFormatted = $"~{remaining.Minutes:D2}:{remaining.Seconds:D2}";
+            EstimatedRemainingFormatted = "~" + FormatDuration(remaining);
         }
         else
         {
             EstimatedRemainingFormatted = "--:--";
         }
     }
+
+    private static string FormatDuration(TimeSpan span) =>
+        span.TotalHours >= 1
+            ? $"{(int)span.TotalHours}:{span.Minutes:D2}:{span.Seconds:D2}"
+            : $"{span.Minutes:D2}:{span.Seconds:D2}";
 
     private void OnLogLineReceived(string line)
     {

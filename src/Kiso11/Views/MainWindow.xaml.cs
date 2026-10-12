@@ -53,32 +53,39 @@ public partial class MainWindow : Window
         Closed += (s, e) => _trayService?.Dispose();
     }
 
-    private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    private bool _closeConfirmed;
+
+    private async void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        if (DataContext is MainViewModel vm && vm.IsProcessing)
+        if (_closeConfirmed || DataContext is not MainViewModel vm || !vm.IsProcessing)
         {
-            var result = MessageBox.Show(
-                vm.Loc.ClosePromptRunningMsg,
-                vm.Loc.ClosePromptRunningTitle,
-                MessageBoxButton.YesNoCancel,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
-            {
-                e.Cancel = true;
-                _trayService?.MinimizeToTray();
-                return;
-            }
-            else if (result == MessageBoxResult.Cancel)
-            {
-                e.Cancel = true;
-                return;
-            }
-
-            vm.CancelProcessCommand.Execute(null);
+            _trayService?.Dispose();
+            return;
         }
 
-        _trayService?.Dispose();
+        e.Cancel = true;
+
+        var result = MessageBox.Show(
+            vm.Loc.ClosePromptRunningMsg,
+            vm.Loc.ClosePromptRunningTitle,
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Question);
+
+        if (result == MessageBoxResult.Yes)
+        {
+            _trayService?.MinimizeToTray();
+            return;
+        }
+
+        if (result == MessageBoxResult.Cancel)
+        {
+            return;
+        }
+
+        // Wait for the cleanup so no WIM is left mounted after the app exits.
+        await vm.CancelAndWaitAsync();
+        _closeConfirmed = true;
+        Close();
     }
 
     private void OnSourceInitialized(object? sender, EventArgs e)

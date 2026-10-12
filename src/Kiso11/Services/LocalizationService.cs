@@ -244,4 +244,9 @@ public class LocalizationService : INotifyPropertyChanged
     public string MsgMountingIso => IsPtBr ? "Montando a ISO…" : "Mounting ISO…";
     public string MsgCopyingIso => IsPtBr ? "Copiando arquivos da ISO…" : "Copying ISO files…";
     public string MsgConvertingEsd => IsPtBr ? "Convertendo install.esd em install.wim…" : "Converting install.esd to install.wim…";
+
+    // Run state
+    public string StageCleanup => IsPtBr ? "Limpando arquivos temporários…" : "Cleaning up temporary files…";
+    public string StatusCancelling => IsPtBr ? "Cancelando… aguarde a limpeza." : "Cancelling… waiting for cleanup.";
+    public string ErrGeneric => IsPtBr ? "Erro: {0}" : "Error: {0}";
 }
