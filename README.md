@@ -39,7 +39,7 @@ Diferente de scripts complicados ou ferramentas com interfaces web inchadas, o K
 - **Cancelamento Seguro**: Permite interromper o processo limpando e desmontando as imagens WIM sem corromper arquivos ou deixar resíduos no disco.
 
 ### 💾 Criação de Pendrive Bootável Integrada
-- **Detecção Segura**: Identifica automaticamente discos removíveis USB, filtrando unidades do sistema para evitar acidentes.
+- **Detecção Segura**: Identifica automaticamente discos removíveis USB, filtrando unidades do sistema para evitar acidentes. Pendrives acima de 32 GB aparecem desativados, porque o Windows só formata FAT32 até 32 GB.
 - **Compatibilidade UEFI Universal**: Formata em **FAT32**, permitindo boot nativo em 100% das placas-mãe sem necessidade de desativar o Secure Boot.
 - **Split-Image Automático**: Se o arquivo `install.wim` exceder 4GB (comum no Windows 11), o Kiso11 o divide automaticamente em partes `.swm` via DISM (`install.swm`, `install2.swm`), respeitando a especificação oficial da Microsoft para pendrives FAT32.
 - **Alternativa em Arquivo ISO**: Possibilidade de salvar como arquivo `.iso` inicializável gerado via `oscdimg` (com download transparente caso não esteja instalado).
@@ -91,12 +91,12 @@ Kiso11/
 
 1. Execute o **`Kiso11.exe`** (localizado em `bin/Release/Kiso11/Kiso11.exe` ou compile pelo código-fonte).
 2. O aplicativo solicitará elevação de **Administrador** (necessária para operações DISM e gravação de disco).
-3. **Passo 1**: Selecione o arquivo `.iso` do Windows (arraste o arquivo para a janela ou clique em *Procurar ISO*).
-4. **Passo 2**: Escolha o destino:
+3. **Origem**: Arraste o arquivo `.iso` do Windows para a janela ou clique em *Escolher ISO*. Confira a edição lida da imagem (por exemplo, Windows 11 Pro).
+4. **Destino**: Escolha o destino:
    - *Gerar Arquivo ISO*: Define o caminho do novo arquivo `.iso` otimizado.
    - *Gravar em Pendrive Bootável*: Selecione a unidade USB desejada na lista.
-5. **Passo 3**: Use o **Preset Recomendado** (padrão) ou ajuste as caixas de seleção conforme preferir.
-6. Clique em **Iniciar Otimização**. Acompanhe o progresso, as fases e os logs em tempo real.
+5. **Ajustes**: Use **Recomendado** (padrão) ou ligue e desligue as opções. A descrição de cada uma aparece ao passar o mouse.
+6. Clique em **Iniciar**. Acompanhe o progresso, as etapas e o log em tempo real.
 
 ### Opção 2: Compilando a partir do Código-Fonte
 
