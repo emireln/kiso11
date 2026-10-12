@@ -24,6 +24,15 @@ public class ProcessRunner
         return exitCode;
     }
 
+    /// Runs a process and returns its exit code with the captured output. Set log to false for quiet queries.
+    public Task<(int ExitCode, string Output)> RunCaptureAsync(
+        string fileName,
+        string arguments,
+        string? workingDirectory = null,
+        CancellationToken cancellationToken = default,
+        bool log = true)
+        => ExecuteAsync(fileName, arguments, workingDirectory, log, cancellationToken);
+
     public async Task<string> RunAndCaptureOutputAsync(
         string fileName,
         string arguments,

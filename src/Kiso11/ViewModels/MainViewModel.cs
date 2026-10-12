@@ -707,7 +707,7 @@ public class MainViewModel : BaseViewModel
             ProgressPercentage = 75;
             StatusMessage = "Otimizando tamanho do arquivo de instalação...";
             Log("[Kiso11] Exportando imagem WIM limpa...");
-            await _dismService.OptimizeAndExportWimAsync(installWim, DebloatOptions.CompressEsd, _cts.Token);
+            await _dismService.OptimizeAndExportWimAsync(installWim, 1, DebloatOptions.CompressEsd, _cts.Token);
 
             // 7. Geração de Saída (ISO ou Pendrive)
             if (OutputMode == OutputMode.BootableUsb && SelectedUsbDrive != null)

@@ -217,4 +217,20 @@ public class LocalizationService : INotifyPropertyChanged
     public string MsgCopyingWim => IsPtBr ? "Copiando install.wim…" : "Copying install.wim…";
     public string MsgWritingBootSector => IsPtBr ? "Gravando setor de inicialização…" : "Writing boot sector…";
     public string MsgUsbReady => IsPtBr ? "Pendrive pronto." : "USB drive ready.";
+
+    // DISM and registry
+    public string ErrReadEditions => IsPtBr ? "Não foi possível ler as edições do Windows nesta imagem." : "Could not read the Windows editions in this image.";
+    public string ErrMountWim => IsPtBr ? "Falha ao montar a imagem em {0} (código {1})." : "Could not mount the image at {0} (exit code {1}).";
+    public string ErrUnmountWim => IsPtBr ? "Falha ao salvar e desmontar {0} (código {1})." : "Could not save and unmount {0} (exit code {1}).";
+    public string ErrExportWim => IsPtBr ? "Falha ao exportar a imagem otimizada (código {0})." : "Could not export the optimized image (exit code {0}).";
+    public string ErrLoadHive => IsPtBr ? "Não foi possível carregar o registro de {0}. Feche programas que possam estar usando o arquivo e tente de novo." : "Could not load the registry hive {0}. Close programs that may be using it and try again.";
+    public string MsgRemovingApps => IsPtBr ? "Removendo apps ({0}/{1})" : "Removing apps ({0}/{1})";
+    public string MsgRemovingAi => IsPtBr ? "Removendo IA e Copilot: {0}" : "Removing AI and Copilot: {0}";
+    public string LogFileDeleteFailed => IsPtBr ? "Não foi possível apagar {0}: {1}" : "Could not delete {0}: {1}";
+    public string LogEdgeRemoveFailed => IsPtBr ? "A remoção do Edge retornou o código {0}." : "Edge removal returned exit code {0}.";
+    public string LogRegistryValueFailed => IsPtBr ? "Falha ao gravar {0} em {1}." : "Could not write {0} to {1}.";
+    public string LogRegistryFailures => IsPtBr ? "{0} ajuste(s) de registro falharam. Veja o log acima." : "{0} registry setting(s) failed. See the log above.";
+    public string LogHiveUnloadFailed => IsPtBr ? "Não foi possível descarregar o registro {0}. Reinicie antes de montar de novo." : "Could not unload the registry hive {0}. Restart before mounting again.";
+    public string LogBootWimSkipped => IsPtBr ? "Bypass do boot.wim ignorado: {0}" : "Skipped the boot.wim bypass: {0}";
+    public string LogDriversFailed => IsPtBr ? "A integração de drivers retornou o código {0}." : "Driver integration returned exit code {0}.";
 }
